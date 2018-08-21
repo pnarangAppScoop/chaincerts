@@ -34,11 +34,11 @@ enum Status {
 
 participant User identified by emailId{
  	o String emailId
-    o String firstName
-    o String lastName
-    o Status status
-    o String level
-    o Field[] authorizedFields
+  o String firstName
+  o String lastName
+  o Status status
+  o String level
+  o Field[] authorizedFields
  
 }
 
@@ -66,10 +66,11 @@ transaction IssueCertificate {
 asset Certificate identified by certificateId{
   o String certificateId
   o Field[] certificateFields
-  /**o String[] certificateFields**/
   o String[] certificateData
   o DateTime issueDate
   --> Institute issuer 
+
+    /**o String[] certificateFields**/
 }
 
 enum FieldType {
@@ -114,7 +115,8 @@ transaction RegisterInstitute {
  o String name
  o String city
  o String country
- o String adminName
+ o String adminFirstName
+ o String adminLastName
  o String adminEmail
  o String description
  o String password
@@ -127,4 +129,12 @@ transaction VerifyCertificate {
 
 transaction GetUser {
   o String emailId
+}
+
+transaction AddUser{
+  o String emailId
+  o String firstName
+  o String lastName
+  o String level
+  o String instituteId
 }

@@ -16,15 +16,22 @@ async function issueCertificate(tx){
     var factory = getFactory();
     
     //hash here
-    var id = 1;
+    var id = '1';
 
     var certificate = factory.newResource(NS, 'Certificate', id);
     var user = getUser(tx.issuerId);
 
-    certificate.certificateFields = user.authorizedFields;
-    for (var i = 0; i < certificateFields.size(); i ++){
+	//certificate.certificateFields = user.authorizedFields;
+
+	certificate.certificateFields = [];
+	certificate.certificateData = [];
+
+	/*
+	for (var i = 0; i < certificateFields.size(); i ++){
         certificate.customData[i] = tx.certData[i];
-    }
+	}
+	*/
+  
     certificate.issueDate = tx.timestamp;
 
     certificate.issuer = factory.newRelationship(NS, 'Institute', tx.instituteId);
@@ -116,43 +123,77 @@ async function issueCertificate(tx) {
 
 async function registerInstitute(register) {
   
-  var hash = parseInt(sha256(register.name) ,10)%100;
-  var id = "INST_" + hash.toString();
+  //var hash = parseInt(sha256(register.name) ,10)%100;
+  //var id = "INST_" + hash.toString();
   
+  var id = 'INST_1';
+
   //create Institute
   var factory = getFactory();
   var inst = factory.newResource(NS, 'Institute', id);
   inst.name = register.name;
   inst.description = register.description;
   inst.issuedCertificates = [];
+  inst.users = [];
   
-  
-  //create certificate of authentication
-  var cert_id = "CERT_" + hash.toString();
-  var auth = factory.newResource(NS, 'Certificate', cert_id);
-  auth.description = "Certificate of Authentication";
-  auth.issuer = factory.newRelationship(NS, 'Institute', id);
-  auth.firstName = "Admin"
-  auth.lastName = "@chaincerts";
-  auth.issueDate = register.timestamp;
-  
-  
-  //add certificate to university 
-  inst.issuedCertificates.push(auth);
-  
+  //create admin 
+  var admin = factory.newResource(NS, 'User', resgister.adminEmail);
+  admin.firstName = register.adminFirstName;
+  admin.lastName = register.adminLastName;
+  admin.status = 'ACTIVE';
+  admin.level = 'ADMIN';
+  admin.authorizedFields = [];
+
+  institute.users.push(admin);
   
   return getParticipantRegistry(NS + '.Institute')
   	.then(function(instituteRegistry){
     		return instituteRegistry.addAll([inst]);
-          })
- 	.then(function() {
-    		return getAssetRegistry(NS + '.Certificate');
-  		})
- 	.then(function(certificateRegistry){
-    		return certificateRegistry.addAll([auth]);
-  })
+		  })
+	.then(function(){
+			return getParticipantRegistry(NS + '.User');
+	})
+	.then(function(userRegistry){
+			return userRegistry.addAll([admin]);
+	})
 }
 
+
+
+/**
+ * Adding a user by admin
+ * @param {org.acme.chaincert.AddUser} data the user data
+ * @transaction
+ */
+
+ async function addUser(data){
+
+	var factory = getFactory();
+
+	var user = factory.newResource(NS, 'User', data.emialId);
+	user.firstName = data.firstName;
+	user.lastName = data.lastName;
+	user.status = 'ACTIVE';
+	user.level = data.level;
+	user.authorizedFields = [];
+
+	return getParticipantRegistry(NS + '.User')
+		.then(function(userRegistry){
+			userRegistry.addAll([user]);
+		})
+		.then(function(){
+			return getParticipantRegistry(NS + '.Institute');
+		})
+		.then(function(instituteRegistry){
+			return instituteRegistry.get(data.instituteId);
+		})
+		.then(function(Institute){
+			Institute.users.push(user);
+		})
+	
+
+
+ }
 
 /**
  * Sample transaction processor function.
@@ -178,11 +219,31 @@ async function verifyCertificate(verify){
 async function getUser(data){
 
     return getParticipantRegistry(NS + 'User')
-    .then(function(participantRegistry){
-           return participantRegistry.get(data.emailId);
+    .then(function(userRegistry){
+           return userRegistry.get(data);
     })
 
 }
+
+
+
+
+
+
+
+
+////////////////////////////////////////////////////
+//////////////////////E N D/////////////////////////
+////////////////////////////////////////////////////
+
+
+
+
+
+
+
+
+
 
 
 //hash function
