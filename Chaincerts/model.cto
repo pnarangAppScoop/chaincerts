@@ -24,6 +24,7 @@ participant Institute identified by instituteId{
     o String description
     o Certificate[] issuedCertificates
     o User[] users
+    o Role[] roles
 }
 
 enum Status {
@@ -32,15 +33,24 @@ enum Status {
   
 }
 
-participant User identified by emailId{
- 	o String emailId
+participant User identified by uid{
+ 	o String uid
+  o String email
   o String firstName
   o String lastName
   o Status status
-  o String level
-  o Field[] authorizedFields
+  --> Role role
+  --> Institute employer
  
 }
+
+asset Role identified by roleId {
+   o String roleId
+   o String roleName
+   o Field[] authorizedFields
+   --> Institute institute
+}
+
 
 /**
 asset Certificate identified by certificateId{
@@ -137,4 +147,8 @@ transaction AddUser{
   o String lastName
   o String level
   o String instituteId
+}
+
+transaction AddField{
+  o String willWork
 }

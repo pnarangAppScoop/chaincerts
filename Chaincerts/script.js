@@ -3,6 +3,9 @@
 
 var NS = 'org.acme.chaincert';
 
+
+
+
 /**
  * Sample transaction processor function.
  * @param {org.acme.chaincert.IssueCertificate} tx The sample transaction instance.
@@ -10,18 +13,18 @@ var NS = 'org.acme.chaincert';
  */
 
 
-async function issueCertificate(tx){
+async function issueCertificate(tx) {
 
-    //create new certificate
-    var factory = getFactory();
-    
-    //hash here
-    var id = '1';
+	//create new certificate
+	var factory = getFactory();
 
-    var certificate = factory.newResource(NS, 'Certificate', id);
-    var user = getUser(tx.issuerId);
+	//hash here
+	var id = '1';
 
-	//certificate.certificateFields = user.authorizedFields;
+	var certificate = factory.newResource(NS, 'Certificate', id);
+	var user = getUser(tx.issuerId);
+
+	//certificate.certificateFields = user.role.authorizedFields;
 
 	certificate.certificateFields = [];
 	certificate.certificateData = [];
@@ -31,37 +34,37 @@ async function issueCertificate(tx){
         certificate.customData[i] = tx.certData[i];
 	}
 	*/
-  
-    certificate.issueDate = tx.timestamp;
 
-    certificate.issuer = factory.newRelationship(NS, 'Institute', tx.instituteId);
+	certificate.issueDate = tx.timestamp;
 
-    var inst;
+	certificate.issuer = factory.newRelationship(NS, 'Institute', tx.instituteId);
 
-    return getAssetRegistry(NS + '.Certificate')
-    .then(function(certificateRegistry){
-        return certificateRegistry.addAll([certificate]);
-    })
-    .then(function(){
-        return getParticipantRegistry(NS + '.Institute');
-    })
-    .then(function(instituteRegistry){
-        return instituteRegistry.get(tx.instituteId);
-    })
-    .then(function(Institute){
-        return Insitute.issuedCertificates.push(certificate);
-    })
-    .then(function(){
-        return getParticipantRegistry(NS + '.Institute');
-    })
-    .then (function(Institute){
-        var factory = getFactory();
-        return instituteRegistry.update(inst);
-    })
+	var inst;
+
+	return getAssetRegistry(NS + '.Certificate')
+		.then(function (certificateRegistry) {
+			return certificateRegistry.addAll([certificate]);
+		})
+		.then(function () {
+			return getParticipantRegistry(NS + '.Institute');
+		})
+		.then(function (instituteRegistry) {
+			return instituteRegistry.get(tx.instituteId);
+		})
+		.then(function (Institute) {
+			return Insitute.issuedCertificates.push(certificate);
+		})
+		.then(function () {
+			return getParticipantRegistry(NS + '.Institute');
+		})
+		.then(function (Institute) {
+			var factory = getFactory();
+			return instituteRegistry.update(inst);
+		})
 
 }
 
- /**
+/**
 async function issueCertificate(tx) {  
   
   //create new certificate
@@ -115,47 +118,80 @@ async function issueCertificate(tx) {
  */
 
 
+
 /**
-	* Create new Institue
-    * @param {org.acme.chaincert.RegisterInstitute} register
-    *@transaction
-    */
+ * Create new Institue
+ * @param {org.acme.chaincert.RegisterInstitute} register
+ *@transaction
+ */
 
 async function registerInstitute(register) {
-  
-  //var hash = parseInt(sha256(register.name) ,10)%100;
-  //var id = "INST_" + hash.toString();
-  
-  var id = 'INST_1';
 
-  //create Institute
-  var factory = getFactory();
-  var inst = factory.newResource(NS, 'Institute', id);
-  inst.name = register.name;
-  inst.description = register.description;
-  inst.issuedCertificates = [];
-  inst.users = [];
-  
-  //create admin 
-  var admin = factory.newResource(NS, 'User', resgister.adminEmail);
-  admin.firstName = register.adminFirstName;
-  admin.lastName = register.adminLastName;
-  admin.status = 'ACTIVE';
-  admin.level = 'ADMIN';
-  admin.authorizedFields = [];
+	//var hash = parseInt(sha256(register.name) ,10)%100;
+	//var id = "INST_" + hash.toString();
 
-  institute.users.push(admin);
-  
-  return getParticipantRegistry(NS + '.Institute')
-  	.then(function(instituteRegistry){
-    		return instituteRegistry.addAll([inst]);
-		  })
-	.then(function(){
+	var id = 'INST_1';
+
+	//create Institute particpant
+	var factory = getFactory();
+	var inst = factory.newResource(NS, 'Institute', id);
+	inst.name = register.name;
+	inst.description = register.description;
+	inst.issuedCertificates = [];
+	inst.users = [];
+
+	//Create new admin role
+	var factory = getFactory();
+	var adminRole = factory.newResource(NS, '.Role', inst.id + '_admin');
+	adminRole.authorizedFields = [];
+	adminRole.institute = factory.newRelationship(NS, '.Institute', id);
+
+	//Create public role
+	var publicRole = factory.newResource(NS, '.Role', inst.id + '_public')
+	public.authorizedFields = [];
+	publicRole.institute = factory.newRelationship(NS, '.Institute', id);
+
+
+	//create admin user
+	var uid = 2;
+	var admin = factory.newResource(NS, 'User', uid);
+	admin.email = register.adminEmail;
+	admin.firstName = register.adminFirstName;
+	admin.lastName = register.adminLastName;
+	admin.status = 'ACTIVE';
+
+	//make institute the employer of admin account
+	admin.employer = factory.newRelationship(NS, '.Institute', id);
+
+	//set admin as admin role
+	admin.role = adminRole;
+
+	//add roles to institute
+	inst.roles.push(adminRole);
+	inst.roles.push(publicRole);
+
+	//add admin user to insititute 
+	institute.users.push(admin);
+
+	return getParticipantRegistry(NS + '.Institute')
+		.then(function (instituteRegistry) {
+			//add institiute to blockchain
+			return instituteRegistry.addAll([inst]);
+		})
+		.then(function () {
+			//get all users
 			return getParticipantRegistry(NS + '.User');
-	})
-	.then(function(userRegistry){
+		})
+		.then(function (userRegistry) {
+			//add institute admin to blockchain
 			return userRegistry.addAll([admin]);
-	})
+		})
+		.then(function(){
+			return getAssetRegistry(NS + '.Role');
+		})
+		.then(function(roleRegistry){
+			roleRegistry.addAdd([adminRole, publicRole]);
+		})
 }
 
 
@@ -166,34 +202,44 @@ async function registerInstitute(register) {
  * @transaction
  */
 
- async function addUser(data){
+async function addUser(data) {
 
 	var factory = getFactory();
 
-	var user = factory.newResource(NS, 'User', data.emialId);
+	var uid = 3;
+	var user = factory.newResource(NS, 'User', uid);
+	user.email = data.email;
 	user.firstName = data.firstName;
 	user.lastName = data.lastName;
 	user.status = 'ACTIVE';
-	user.level = data.level;
-	user.authorizedFields = [];
+	user.role = factory.newRelationship(NS, '.Role', data.roleId)
+	user.employer = factory.newRelationship(NS, '.Institute', data.instituteId);
 
 	return getParticipantRegistry(NS + '.User')
-		.then(function(userRegistry){
+		.then(function (userRegistry) {
 			userRegistry.addAll([user]);
 		})
-		.then(function(){
+		.then(function () {
 			return getParticipantRegistry(NS + '.Institute');
 		})
-		.then(function(instituteRegistry){
+		.then(function (instituteRegistry) {
 			return instituteRegistry.get(data.instituteId);
 		})
-		.then(function(Institute){
+		.then(function (Institute) {
 			Institute.users.push(user);
 		})
-	
+		.then(function () {
+			return getParticipantRegistry(NS + '.Institute');
+		})
+		.then(function (instituteRegistry) {
+			var factory = getFactory();
+			return instituteRegistry.update();
+		})
 
 
- }
+
+
+}
 
 /**
  * Sample transaction processor function.
@@ -201,27 +247,40 @@ async function registerInstitute(register) {
  * @transaction
  */
 
-async function verifyCertificate(verify){
- 
-   return getAssetRegistry(NS + '.Certificate')
-  	.then(function(certificateRegistry){
-    		return certificateRegistry.get(verify.certificateID);
-   })
-  
+async function verifyCertificate(verify) {
+
+	return getAssetRegistry(NS + '.Certificate')
+		.then(function (certificateRegistry) {
+			return certificateRegistry.get(verify.certificateID);
+		})
+
 }
 
+/**Adding a field
+ * @param {org.acme.chaincert.AddField} fieldData data of the field
+ * @transaction
+ * Will work on this tomrrow :) 
+ */
+
+async function addField(fieldData) {
+
+	var factory = getFactory();
+
+
+
+}
 
 /**
  * Sample transaction processor function.
  * @param {org.acme.chaincert.GetUser} data The sample transaction instance.
  * @transaction
  */
-async function getUser(data){
+async function getUser(data) {
 
-    return getParticipantRegistry(NS + 'User')
-    .then(function(userRegistry){
-           return userRegistry.get(data);
-    })
+	return getParticipantRegistry(NS + 'User')
+		.then(function (userRegistry) {
+			return userRegistry.get(data);
+		})
 
 }
 
@@ -249,9 +308,9 @@ async function getUser(data){
 //hash function
 var sha256 = function sha256(ascii) {
 	function rightRotate(value, amount) {
-		return (value>>>amount) | (value<<(32 - amount));
+		return (value >>> amount) | (value << (32 - amount));
 	};
-	
+
 	var mathPow = Math.pow;
 	var maxWord = mathPow(2, 32);
 	var lengthProperty = 'length'
@@ -259,8 +318,8 @@ var sha256 = function sha256(ascii) {
 	var result = ''
 
 	var words = [];
-	var asciiBitLength = ascii[lengthProperty]*8;
-	
+	var asciiBitLength = ascii[lengthProperty] * 8;
+
 	//* caching results is optional - remove/add slash from front of this line to toggle
 	// Initial hash value: first 32 bits of the fractional parts of the square roots of the first 8 primes
 	// (we actually calculate the first 64, but extra values are just ignored)
@@ -279,21 +338,21 @@ var sha256 = function sha256(ascii) {
 			for (i = 0; i < 313; i += candidate) {
 				isComposite[i] = candidate;
 			}
-			hash[primeCounter] = (mathPow(candidate, .5)*maxWord)|0;
-			k[primeCounter++] = (mathPow(candidate, 1/3)*maxWord)|0;
+			hash[primeCounter] = (mathPow(candidate, .5) * maxWord) | 0;
+			k[primeCounter++] = (mathPow(candidate, 1 / 3) * maxWord) | 0;
 		}
 	}
-	
+
 	ascii += '\x80' // Append Ƈ' bit (plus zero padding)
-	while (ascii[lengthProperty]%64 - 56) ascii += '\x00' // More zero padding
+	while (ascii[lengthProperty] % 64 - 56) ascii += '\x00' // More zero padding
 	for (i = 0; i < ascii[lengthProperty]; i++) {
 		j = ascii.charCodeAt(i);
-		if (j>>8) return; // ASCII check: only accept characters in range 0-255
-		words[i>>2] |= j << ((3 - i)%4)*8;
+		if (j >> 8) return; // ASCII check: only accept characters in range 0-255
+		words[i >> 2] |= j << ((3 - i) % 4) * 8;
 	}
-	words[words[lengthProperty]] = ((asciiBitLength/maxWord)|0);
+	words[words[lengthProperty]] = ((asciiBitLength / maxWord) | 0);
 	words[words[lengthProperty]] = (asciiBitLength)
-	
+
 	// process each chunk
 	for (j = 0; j < words[lengthProperty];) {
 		var w = words.slice(j, j += 16); // The message is expanded into 64 words as part of the iteration
@@ -301,43 +360,49 @@ var sha256 = function sha256(ascii) {
 		// This is now the undefinedworking hash", often labelled as variables a...g
 		// (we have to truncate as well, otherwise extra entries at the end accumulate
 		hash = hash.slice(0, 8);
-		
+
 		for (i = 0; i < 64; i++) {
 			var i2 = i + j;
 			// Expand the message into 64 words
 			// Used below if 
-			var w15 = w[i - 15], w2 = w[i - 2];
+			var w15 = w[i - 15],
+				w2 = w[i - 2];
 
 			// Iterate
-			var a = hash[0], e = hash[4];
-			var temp1 = hash[7]
-				+ (rightRotate(e, 6) ^ rightRotate(e, 11) ^ rightRotate(e, 25)) // S1
-				+ ((e&hash[5])^((~e)&hash[6])) // ch
-				+ k[i]
+			var a = hash[0],
+				e = hash[4];
+			var temp1 = hash[7] +
+				(rightRotate(e, 6) ^ rightRotate(e, 11) ^ rightRotate(e, 25)) // S1
+				+
+				((e & hash[5]) ^ ((~e) & hash[6])) // ch
+				+
+				k[i]
 				// Expand the message schedule if needed
-				+ (w[i] = (i < 16) ? w[i] : (
-						w[i - 16]
-						+ (rightRotate(w15, 7) ^ rightRotate(w15, 18) ^ (w15>>>3)) // s0
-						+ w[i - 7]
-						+ (rightRotate(w2, 17) ^ rightRotate(w2, 19) ^ (w2>>>10)) // s1
-					)|0
-				);
+				+
+				(w[i] = (i < 16) ? w[i] : (
+					w[i - 16] +
+					(rightRotate(w15, 7) ^ rightRotate(w15, 18) ^ (w15 >>> 3)) // s0
+					+
+					w[i - 7] +
+					(rightRotate(w2, 17) ^ rightRotate(w2, 19) ^ (w2 >>> 10)) // s1
+				) | 0);
 			// This is only used once, so *could* be moved below, but it only saves 4 bytes and makes things unreadble
 			var temp2 = (rightRotate(a, 2) ^ rightRotate(a, 13) ^ rightRotate(a, 22)) // S0
-				+ ((a&hash[1])^(a&hash[2])^(hash[1]&hash[2])); // maj
-			
-			hash = [(temp1 + temp2)|0].concat(hash); // We don't bother trimming off the extra ones, they're harmless as long as we're truncating when we do the slice()
-			hash[4] = (hash[4] + temp1)|0;
+				+
+				((a & hash[1]) ^ (a & hash[2]) ^ (hash[1] & hash[2])); // maj
+
+			hash = [(temp1 + temp2) | 0].concat(hash); // We don't bother trimming off the extra ones, they're harmless as long as we're truncating when we do the slice()
+			hash[4] = (hash[4] + temp1) | 0;
 		}
-		
+
 		for (i = 0; i < 8; i++) {
-			hash[i] = (hash[i] + oldHash[i])|0;
+			hash[i] = (hash[i] + oldHash[i]) | 0;
 		}
 	}
-	
+
 	for (i = 0; i < 8; i++) {
 		for (j = 3; j + 1; j--) {
-			var b = (hash[i]>>(j*8))&255;
+			var b = (hash[i] >> (j * 8)) & 255;
 			result += ((b < 16) ? 0 : '') + b.toString(16);
 		}
 	}
