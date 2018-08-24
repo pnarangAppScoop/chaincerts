@@ -52,6 +52,7 @@ async function issueCertificate(tx) {
 			return instituteRegistry.get(tx.instituteId);
 		})
 		.then(function (Institute) {
+			inst = Institute;
 			return Insitute.issuedCertificates.push(certificate);
 		})
 		.then(function () {
@@ -164,7 +165,7 @@ async function registerInstitute(register) {
 	admin.employer = factory.newRelationship(NS, '.Institute', id);
 
 	//set admin as admin role
-	admin.role = adminRole;
+	admin.role = factory.newRelationship(NS, '.Role', inst.id + '_admin');
 
 	//add roles to institute
 	inst.roles.push(adminRole);
@@ -172,6 +173,8 @@ async function registerInstitute(register) {
 
 	//add admin user to insititute 
 	institute.users.push(admin);
+
+	var inst;
 
 	return getParticipantRegistry(NS + '.Institute')
 		.then(function (instituteRegistry) {
@@ -202,6 +205,8 @@ async function registerInstitute(register) {
  * @transaction
  */
 
+
+ //look into institute updating, done incorrectly
 async function addUser(data) {
 
 	var factory = getFactory();
@@ -215,6 +220,8 @@ async function addUser(data) {
 	user.role = factory.newRelationship(NS, '.Role', data.roleId)
 	user.employer = factory.newRelationship(NS, '.Institute', data.instituteId);
 
+	var inst;
+
 	return getParticipantRegistry(NS + '.User')
 		.then(function (userRegistry) {
 			userRegistry.addAll([user]);
@@ -226,6 +233,7 @@ async function addUser(data) {
 			return instituteRegistry.get(data.instituteId);
 		})
 		.then(function (Institute) {
+			inst = Institute;
 			Institute.users.push(user);
 		})
 		.then(function () {
@@ -233,7 +241,7 @@ async function addUser(data) {
 		})
 		.then(function (instituteRegistry) {
 			var factory = getFactory();
-			return instituteRegistry.update();
+			return instituteRegistry.update(inst);
 		})
 
 
@@ -266,6 +274,43 @@ async function addField(fieldData) {
 
 	var factory = getFactory();
 
+	var id = "1";
+	//create Field
+	var field = factory.newResource(NS, 'Field', id);
+	//add Field data
+	//field Name
+	field.name = fieldData.name;
+	//field Type (enum)
+	field.type = fieldData.type;
+	//field Options (only if dropdown)
+	if (field.type == 'DROPDOWN'){
+		field.options = fieldData.options;
+	} else {
+		field.options = null;
+	}
+	
+	
+	//get all fields
+	return getAssetRegistry(NS + '.Field')
+		.then(function(fieldRegistry){
+			//add new field
+			return fieldRegistry.addAll([field]);
+		})
+		.then(function(){
+			//get all roles
+			return getAssetRegistry(NS + '.Role');
+		})
+		.then(function(roleRegistry){
+			var factory = getFactory();
+			//for each authroized role, add the field 
+			//will this work??
+			for (var i = 0; i < fieldData.authorizedViewers.size(); i++){
+				var r = roleRegistry.get(fieldData.authorizedViewers[i].roleId);
+				r.authorizedFields.push(field);	
+				return roleRegistry.update(r);
+			}
+		})
+
 
 
 }
@@ -283,11 +328,6 @@ async function getUser(data) {
 		})
 
 }
-
-
-
-
-
 
 
 

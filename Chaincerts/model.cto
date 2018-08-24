@@ -150,5 +150,8 @@ transaction AddUser{
 }
 
 transaction AddField{
-  o String willWork
+  o String name
+  o FieldType type
+  o String[] options
+  o User[] authorizedViewers
 }
