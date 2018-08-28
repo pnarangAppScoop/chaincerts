@@ -1,6 +1,15 @@
 /* global getAssetRegistry getFactory emit */
 
 
+
+// ____  _           _                     _       
+/// ___|| |__   __ _(_)_ __   ___ ___ _ __| |_ ___ 
+//| |   | '_ \ / _` | | '_ \ / __/ _ \ '__| __/ __|
+//| |__ | | | | (_| | | | | | (_|  __/ |  | |_\__ \
+//\____||_| |_|\__,_|_|_| |_|\___\___|_|   \__|___/
+//												
+
+
 var NS = 'org.acme.chaincert';
 
 
@@ -21,45 +30,72 @@ async function issueCertificate(tx) {
 	//hash here
 	var id = '1';
 
+	//create Certificate
 	var certificate = factory.newResource(NS, 'Certificate', id);
-	//var user = getUser(tx.issuerId);
 
-	//certificate.certificateFields = user.role.authorizedFields;
-
+	//create Field and Data arrays
 	certificate.certificateFields = [];
 	certificate.certificateData = [];
 
-	/*
-	for (var i = 0; i < certificateFields.size(); i ++){
-        certificate.customData[i] = tx.certData[i];
-	}
-	*/
 
+	//popoulate Data Array
+	for (var i = 0; i < tx.certData.length; i ++){
+        certificate.certificateData[i] = tx.certData[i];
+	}
+	
+	//issueDate
 	certificate.issueDate = tx.timestamp;
 
+
+	//issuer
 	certificate.issuer = factory.newRelationship(NS, 'Institute', tx.instituteId);
 
 	var inst;
+	var roleId = "INST_1_admin";
 
-	return getAssetRegistry(NS + '.Certificate')
+	return getParticipantRegistry(NS + '.User')
+		.then(function(userRegistry){
+			return userRegistry.get(tx.issuerId);
+		})
+		.then(function(user){
+			roleId = user.role.getIdentifier();
+		})
+		.then(function(){
+			return getAssetRegistry(NS + '.Role');
+		})
+		.then(function(roleRegistry){
+			return roleRegistry.get(roleId);
+		})
+		.then(function(userRole){
+			certificate.certificateFields = userRole.authorizedFields;
+		})
+		.then(function(){
+			return getAssetRegistry(NS + '.Certificate');
+		})
 		.then(function (certificateRegistry) {
+			//add certificate to blockchain
 			return certificateRegistry.addAll([certificate]);
 		})
 		.then(function () {
+			//get all institutes
 			return getParticipantRegistry(NS + '.Institute');
 		})
 		.then(function (instituteRegistry) {
+			//get issuing institute
 			return instituteRegistry.get(tx.instituteId);
 		})
 		.then(function (Institute) {
 			inst = Institute;
-			return Insitute.issuedCertificates.push(certificate);
+			//add certificate to list of certificates issued by institute
+			return Institute.issuedCertificates.push(certificate);
 		})
 		.then(function () {
+			//get all institutes
 			return getParticipantRegistry(NS + '.Institute');
 		})
-		.then(function (Institute) {
+		.then(function (instituteRegistry) {
 			var factory = getFactory();
+			//update institute on blockchain to reflect addition of data in certificates[] array
 			return instituteRegistry.update(inst);
 		})
 
@@ -168,7 +204,7 @@ async function registerInstitute(register) {
 	admin.employer = factory.newRelationship(NS, 'Institute', id);
 
 	//set admin as admin role
-	admin.role = factory.newRelationship(NS, 'Role', inst.id + '_admin');
+	admin.role = factory.newRelationship(NS, 'Role', id + '_admin');
 
 	//add roles to institute
 	inst.roles.push(adminRole);
@@ -207,21 +243,18 @@ async function registerInstitute(register) {
  * @param {org.acme.chaincert.AddUser} data the user data
  * @transaction
  */
-
-
- //look into institute updating, done incorrectly
 async function addUser(data) {
 
 	var factory = getFactory();
 
-	var uid = 3;
+	var uid = "3";
 	var user = factory.newResource(NS, 'User', uid);
 	user.email = data.email;
 	user.firstName = data.firstName;
 	user.lastName = data.lastName;
 	user.status = 'ACTIVE';
-	user.role = factory.newRelationship(NS, '.Role', data.roleId)
-	user.employer = factory.newRelationship(NS, '.Institute', data.instituteId);
+	user.role = factory.newRelationship(NS, 'Role', data.roleId)
+	user.employer = factory.newRelationship(NS, 'Institute', data.instituteId);
 
 	var inst;
 
@@ -267,6 +300,22 @@ async function verifyCertificate(verify) {
 
 }
 
+
+/**
+ * Sample transaction processor function.
+ * @param {org.acme.chaincert.GetUser} userData The sample transaction instance.
+ * @transaction
+ */
+async function getUser(userData) {
+
+	return getParticipantRegistry(NS + '.User')
+		.then(function (userRegistry) {
+			return userRegistry.get(userData.uid);
+		})
+
+}
+
+//need ot make fixes to this function 
 /**Adding a field
  * @param {org.acme.chaincert.AddField} fieldData data of the field
  * @transaction
@@ -290,39 +339,6 @@ async function addField(fieldData) {
 
 	field.authorizedViewersRoleId = [];
 	field.authorizedViewersRoleId = fieldData.authorizedViewersRoleId;
-	
-	//get all fields
-
-	/*
-	return getAssetRegistry(NS + '.Field')
-		.then(func+ion(fieldRegistry){
-			//add new field
-			return fieldRegistry.addAll([field]);
-		})
-		.then(function(){
-			//get all roles
-			return getAssetRegistry(NS + '.Role');
-		})
-		.then(function(roleRegistry){
-			var factory = getFactory();
-			//for each authroized role, add the field 
-			//will this work??
-			
-			
-			var r = roleRegistry.get(fieldData.instituteId + '_admin');
-			//r.authorizedFields.push(field);
-			field.authorizedViewers.push(r);
-
-			for (var i = 0; i < fieldData.authorizedViewers.size(); i++){
-				r = roleRegistry.get(fieldData.authorizedViewers[i].roleId);
-				r.authorizedFields.push(field);	
-				return roleRegistry.update(r);
-			}
-			
-		})
-	
-		*/
-
 
 	var r;
 
@@ -348,12 +364,6 @@ async function addField(fieldData) {
 			return roleRegistry.update(r);
 			//need to update institute too
 		})
-
-
-		
-
-
-
 
 
 }
@@ -411,6 +421,106 @@ async function addField(fieldData) {
 		})
 
  }
+
+
+
+ /**
+  * Add an existing field to an existing role
+  * @param {org.acme.chaincert.AddFieldToRole} fieldData - data of field 
+  * @transaction
+  */
+
+  function addFieldToRole(fieldData){
+
+	var f;
+	var r;
+
+	return getAssetRegistry(NS + '.Field')
+		.then(function(fieldRegistry){
+			return fieldRegistry.get(fieldData.fieldId);
+		})
+		.then(function(field){
+			f = field;
+			//add role to authorized viewers
+			field.authorizedViewersRoleId.push(fieldData.roleId);
+		})
+		.then(function(){
+			return getAssetRegistry(NS + '.Role');
+		})
+		.then(function(roleRegistry){
+			return roleRegistry.get(fieldData.roleId);
+		})
+		.then(function(role){
+			//add field to role's authorized fields
+			r = role;
+			role.authorizedFields.push(f);
+		})
+		.then(function(){
+			return getAssetRegistry(NS + '.Field');
+		})
+		.then(function(fieldRegistry){
+			//update field on blockchain
+			fieldRegistry.update(f);
+		})
+		.then(function(){
+			getAssetRegistry(NS + '.Role');
+		})
+		.then(function(roleRegistry){
+			//update role on blockchain
+			roleRegistry.update(r);
+		})
+
+
+  }
+
+/**
+ * Rmeove access to a field from a user
+ * @param {org.acme.chaincert.RemoveFieldFromRole} fieldData - data of field
+ * @transaction
+ */
+
+ function removeFieldFromRole(fieldData){
+
+	var f;
+	var r;
+
+	return getAssetRegistry(NS + '.Field')
+		.then(function(fieldRegistry){
+			return fieldRegistry.get(fieldData.fieldId);
+		})
+		.then(function(field){
+			f = field;
+			var index = field.authorizedViewersRoleId.indexOf(fieldData.roleId);
+			if(index>-1){
+				field.authorizedViewersRoleId.splice(index,1);
+			}
+		})
+		.then(function(){
+			return getAssetRegistry(NS + '.Role');
+		})
+		.then(function(roleRegistry){
+			return roleRegistry.get(fieldData.roleId);
+		})
+		.then(function(role){
+			r = role;
+			index = role.authorizedFields.splice(f);
+			if(index>-1){
+				role.authorizedFields.splice(index,1);
+			}
+		})
+		.then(function(){
+			return getAssetRegistry(NS + '.Field');
+		})
+		.then(function(fieldRegistry){
+			fieldRegistry.update(f);
+		})
+		.then(function(){
+			return getAssetRegistry(NS + '.Role');
+		})
+		.then(function(roleRegistry){
+			roleRegistry.update(r);
+		})
+ }		
 
 
 //______ _   _ _____  

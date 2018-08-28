@@ -142,10 +142,9 @@ transaction VerifyCertificate {
 
 
 transaction AddUser{
-  o String emailId
+  o String email
   o String firstName
   o String lastName
-  o String level
   o String instituteId
   o String roleId
 }
@@ -154,7 +153,7 @@ transaction AddField{
   o String name
   o String instituteId
   o FieldType type
-  o String[] options optional
+  o String[] options 
   o String[] authorizedViewersRoleId
 }
 
@@ -165,4 +164,35 @@ transaction AddRole{
 
 //TODO
 transaction AddFieldToRole{
+  o String roleId
+  o String fieldId
 } 
+
+transaction RemoveFieldFromRole{
+  o String roleId
+  o String fieldId
+
+}
+
+transaction updateCertificate{
+
+}
+
+transaction voidCertificate{
+
+}
+
+transaction RemoveUser{
+
+}
+
+transaction RemoveRole{
+
+}
+
+
+
+//TEST
+transaction GetUser{
+  o String uid
+}
