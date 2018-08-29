@@ -37,6 +37,8 @@ async function issueCertificate(tx) {
 	certificate.certificateFields = [];
 	certificate.certificateData = [];
 
+	certificate.status = 'ACTIVE';
+
 
 	//popoulate Data Array
 	for (var i = 0; i < tx.certData.length; i ++){
@@ -522,6 +524,118 @@ async function addField(fieldData) {
 		})
  }		
 
+
+ /**
+  * updateCertificate function - to update a certificate to match new fields
+  * @param {org.acme.chaincert.UpdateCertificate} newData - new certificate Data
+  * @transaction
+  */
+
+
+  function updateCertificate(newData){
+
+	var c;
+	var i;
+	var r;
+	var roleId;
+	var instId;
+
+	return getParticipantRegistry(NS + '.User')
+		.then(function(userRegistry){
+			userRegistry.get(newData.issuerId);
+		})
+		.then(function(user){
+			roleId = u.role.getIdentifier();
+		})
+		.then(function(){
+			return getAssetRegistry(NS + '.Role');
+		})
+		.then(function(roleRegistry){
+			r = roleRegistry.get(roleId);
+		})
+		.then(function(){
+			return getAssetRegistry(NS + '.Certificate');
+		})
+		.then(function(certificateRegistry){
+			//get all certificates
+			return certificateRegistry.get(newData.certificateId);
+		})
+		.then(function(certificate){
+			c = certificate;
+			//change old certiicate data
+			certificate.certificateData = newData.certificateData;
+			certificate.certificateFields = r.authorizedFields;
+			instId = certificate.issuer.getIdentifier;
+		})
+		.then(function(){
+			return getParticipantRegistry(NS + '.Institute');
+		})
+		.then(function(instituteRegistry){
+			return instituteRegistry.get(instId);
+		})
+		.then(function(institute){
+			i = institute;
+		})
+		.then(function(){
+			return getAssetRegistry(NS + '.Certificate');
+		})
+		.then(function(certificateRegistry){
+			certificateRegistry.update(c);
+		})
+		.then(function(){
+			return getParticipantRegistry(NS + '.Institute');
+		})
+		.then(function(instituteRegistry){
+			instituteRegistry.update(i);
+		})
+
+
+  }
+
+
+  /**
+   * Make a certificate inactive [void]
+   * @param {org.acme.chaincert.VoidCertificate} certId - certificate Id
+   * @transaction 
+   */
+
+   function VoidCertificate(certId){
+
+	var c;
+	var i;
+	var instId;
+	return getAssetRegistry(NS + '.Certificate')
+		.then(function(certificateRegistry){
+			return certificateRegistry.get(certId.certificateId);
+		})
+		.then (function(certificate){
+			c = certificate;
+			certificate.status = 'INACTIVE';
+			instId = certificate.issuer.getIdentifier();
+		})
+		.then(function(){
+			return getParticipantRegistry(NS + '.Institute');
+		})
+		.then(function(institiuteRegistry){
+			return nstituteRegistry.get(instId):
+		})
+		.then(function(institiute){
+			i = institute;
+		})
+		.then(function(){
+			return getAssetRegistry(NS + '.Certificate');
+		})
+		.then(function(certificateRegistry){
+			certificateRegistry.update(c);
+		})
+		.then(function(){
+			return getParticipantRegistry(NS + '.Institute');
+		})
+		.then(function(instituteRegistry){
+			instituteRegistry.update(i);
+		})
+
+   }
 
 //______ _   _ _____  
 //|  ____| \ | |  __ \ 

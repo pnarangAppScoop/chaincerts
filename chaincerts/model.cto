@@ -78,6 +78,7 @@ asset Certificate identified by certificateId{
   o Field[] certificateFields
   o String[] certificateData
   o DateTime issueDate
+  o Status status
   --> Institute issuer 
 
     /**o String[] certificateFields**/
@@ -174,22 +175,27 @@ transaction RemoveFieldFromRole{
 
 }
 
-transaction updateCertificate{
-
+transaction UpdateCertificate{
+  o String[] certificateData
+  o String[] issuerId
+  o String certificateID
 }
 
-transaction voidCertificate{
-
+transaction VoidCertificate{
+  o String certificateId
 }
 
 transaction RemoveUser{
-
+  //remove user from instutute
+  //remove user from users
 }
 
 transaction RemoveRole{
-
+  //remove role from institute
+  //remove role from Field
+  //remove role from users
+  //remove role from roles
 }
-
 
 
 //TEST
