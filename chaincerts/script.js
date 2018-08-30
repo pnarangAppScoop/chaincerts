@@ -41,10 +41,10 @@ async function issueCertificate(tx) {
 
 
 	//popoulate Data Array
-	for (var i = 0; i < tx.certData.length; i ++){
-        certificate.certificateData[i] = tx.certData[i];
+	for (var i = 0; i < tx.certData.length; i++) {
+		certificate.certificateData[i] = tx.certData[i];
 	}
-	
+
 	//issueDate
 	certificate.issueDate = tx.timestamp;
 
@@ -56,22 +56,22 @@ async function issueCertificate(tx) {
 	var roleId = "INST_1_admin";
 
 	return getParticipantRegistry(NS + '.User')
-		.then(function(userRegistry){
+		.then(function (userRegistry) {
 			return userRegistry.get(tx.issuerId);
 		})
-		.then(function(user){
+		.then(function (user) {
 			roleId = user.role.getIdentifier();
 		})
-		.then(function(){
+		.then(function () {
 			return getAssetRegistry(NS + '.Role');
 		})
-		.then(function(roleRegistry){
+		.then(function (roleRegistry) {
 			return roleRegistry.get(roleId);
 		})
-		.then(function(userRole){
+		.then(function (userRole) {
 			certificate.certificateFields = userRole.authorizedFields;
 		})
-		.then(function(){
+		.then(function () {
 			return getAssetRegistry(NS + '.Certificate');
 		})
 		.then(function (certificateRegistry) {
@@ -178,18 +178,18 @@ async function registerInstitute(register) {
 	inst.description = register.description;
 	inst.issuedCertificates = [];
 	inst.users = [];
-  	inst.roles = [];
+	inst.roles = [];
 
 	//Create new admin role
 	var factory = getFactory();
 	var adminRole = factory.newResource(NS, 'Role', id + '_admin');
-  	adminRole.roleName = "Admin"
+	adminRole.roleName = "Admin"
 	adminRole.authorizedFields = [];
 	adminRole.institute = factory.newRelationship(NS, 'Institute', id);
 
 	//Create public role
 	var publicRole = factory.newResource(NS, 'Role', id + '_public')
-    publicRole.roleName = "Public"
+	publicRole.roleName = "Public"
 	publicRole.authorizedFields = [];
 	publicRole.institute = factory.newRelationship(NS, 'Institute', id);
 
@@ -201,6 +201,7 @@ async function registerInstitute(register) {
 	admin.firstName = register.adminFirstName;
 	admin.lastName = register.adminLastName;
 	admin.status = 'ACTIVE';
+	admin.phone = register.adminPhone;
 
 	//make institute the employer of admin account
 	admin.employer = factory.newRelationship(NS, 'Institute', id);
@@ -230,10 +231,10 @@ async function registerInstitute(register) {
 			//add institute admin to blockchain
 			return userRegistry.addAll([admin]);
 		})
-		.then(function(){
+		.then(function () {
 			return getAssetRegistry(NS + '.Role');
 		})
-		.then(function(roleRegistry){
+		.then(function (roleRegistry) {
 			roleRegistry.addAll([adminRole, publicRole]);
 		})
 }
@@ -257,6 +258,7 @@ async function addUser(data) {
 	user.status = 'ACTIVE';
 	user.role = factory.newRelationship(NS, 'Role', data.roleId)
 	user.employer = factory.newRelationship(NS, 'Institute', data.instituteId);
+	user.phone = data.phone;
 
 	var inst;
 
@@ -317,7 +319,7 @@ async function getUser(userData) {
 
 }
 
-//need ot make fixes to this function 
+//need ot make fixes to this function - add field to all authorized viewers
 /**Adding a field
  * @param {org.acme.chaincert.AddField} fieldData data of the field
  * @transaction
@@ -342,18 +344,19 @@ async function addField(fieldData) {
 	field.authorizedViewersRoleId = [];
 	field.authorizedViewersRoleId = fieldData.authorizedViewersRoleId;
 
-	var r;
 
+
+	/**
 	return getAssetRegistry(NS + '.Field')
 		.then(function(fieldRegistry){
-			field.authorizedViewersRoleId.push('INST_1_admin');
+			field.authorizedViewersRoleId.push(fieldData.instituteId + '_admin');
 			return fieldRegistry.addAll([field]);
 		})
 		.then(function(){
 			return getAssetRegistry(NS + '.Role');
 		})
 		.then(function(roleRegistry){
-			return roleRegistry.get('INST_1_admin');
+			return roleRegistry.get(fieldData.instituteId + '_admin');
 		})
 		.then(function(adminRole){
 			r = adminRole;
@@ -366,7 +369,29 @@ async function addField(fieldData) {
 			return roleRegistry.update(r);
 			//need to update institute too
 		})
+*/
 
+	var rids = [];
+
+	field.authorizedViewersRoleId.push(fieldData.instituteId + '_admin');
+
+	var roleRegistry = await getAssetRegistry(NS + '.Role');
+	var fieldRegistry = await getAssetRegistry(NS + '.Field');
+	fieldRegistry.addAll([field]);
+
+	var adminRole = await roleRegistry.get(fieldData.instituteId + '_admin');
+	adminRole.authorizedFields.push(field);
+
+	for (var i = 0; i < fieldData.authorizedViewersRoleId.length; i++) {
+		rids[i] = await roleRegistry.get(fieldData.authorizedViewersRoleId[i]);
+		rids[i].authorizedFields.push(field);
+	}
+
+	roleRegistry.update(adminRole);
+
+	for (var i = 0; i < fieldData.authorizedViewersRoleId.length; i++) {
+		roleRegistry.update(rids[i]);
+	}
 
 }
 
@@ -377,20 +402,20 @@ async function addField(fieldData) {
  * @transaction
  */
 
- async function addRole(roleData){
+async function addRole(roleData) {
 
 	var factory = getFactory();
 
 
 	//hash role id
-	var rid ="1";
+	var rid = "1";
 
 	//create role
 	var role = factory.newResource(NS, 'Role', rid);
 
 	//set role name
 	role.roleName = roleData.roleName;
-	
+
 	//authorized fields are empty
 	//array is filled when fields are added
 	role.authorizedFields = [];
@@ -402,78 +427,78 @@ async function addField(fieldData) {
 	var inst;
 
 	return getAssetRegistry(NS + '.Role')
-		.then(function(roleRegistry){
+		.then(function (roleRegistry) {
 			roleRegistry.addAll([role]);
 		})
-		.then(function(){
+		.then(function () {
 			return getParticipantRegistry(NS + '.Institute');
 		})
-		.then(function(instituteRegistry){
+		.then(function (instituteRegistry) {
 			return instituteRegistry.get(roleData.instituteId);
 		})
-		.then(function(institute){
+		.then(function (institute) {
 			inst = institute;
 			institute.roles.push(role);
 		})
-		.then(function(){
+		.then(function () {
 			return getParticipantRegistry(NS + '.Institute');
 		})
-		.then(function(instituteRegistry){
+		.then(function (instituteRegistry) {
 			instituteRegistry.update(inst);
 		})
 
- }
+}
 
 
 
- /**
-  * Add an existing field to an existing role
-  * @param {org.acme.chaincert.AddFieldToRole} fieldData - data of field 
-  * @transaction
-  */
+/**
+ * Add an existing field to an existing role
+ * @param {org.acme.chaincert.AddFieldToRole} fieldData - data of field 
+ * @transaction
+ */
 
-  function addFieldToRole(fieldData){
+function addFieldToRole(fieldData) {
 
 	var f;
 	var r;
 
 	return getAssetRegistry(NS + '.Field')
-		.then(function(fieldRegistry){
+		.then(function (fieldRegistry) {
 			return fieldRegistry.get(fieldData.fieldId);
 		})
-		.then(function(field){
+		.then(function (field) {
 			f = field;
 			//add role to authorized viewers
 			field.authorizedViewersRoleId.push(fieldData.roleId);
 		})
-		.then(function(){
+		.then(function () {
 			return getAssetRegistry(NS + '.Role');
 		})
-		.then(function(roleRegistry){
+		.then(function (roleRegistry) {
 			return roleRegistry.get(fieldData.roleId);
 		})
-		.then(function(role){
+		.then(function (role) {
 			//add field to role's authorized fields
 			r = role;
 			role.authorizedFields.push(f);
 		})
-		.then(function(){
+		.then(function () {
 			return getAssetRegistry(NS + '.Field');
 		})
-		.then(function(fieldRegistry){
+		.then(function (fieldRegistry) {
 			//update field on blockchain
 			fieldRegistry.update(f);
 		})
-		.then(function(){
+		.then(function () {
 			getAssetRegistry(NS + '.Role');
 		})
-		.then(function(roleRegistry){
+		.then(function (roleRegistry) {
 			//update role on blockchain
 			roleRegistry.update(r);
 		})
 
 
-  }
+}
 
 /**
  * Rmeove access to a field from a user
@@ -481,58 +506,58 @@ async function addField(fieldData) {
  * @transaction
  */
 
- function removeFieldFromRole(fieldData){
-
+function removeFieldFromRole(fieldData) {
+	//possibly need to update institute here?
 	var f;
 	var r;
 
 	return getAssetRegistry(NS + '.Field')
-		.then(function(fieldRegistry){
+		.then(function (fieldRegistry) {
 			return fieldRegistry.get(fieldData.fieldId);
 		})
-		.then(function(field){
+		.then(function (field) {
 			f = field;
 			var index = field.authorizedViewersRoleId.indexOf(fieldData.roleId);
-			if(index>-1){
-				field.authorizedViewersRoleId.splice(index,1);
+			if (index > -1) {
+				field.authorizedViewersRoleId.splice(index, 1);
 			}
 		})
-		.then(function(){
+		.then(function () {
 			return getAssetRegistry(NS + '.Role');
 		})
-		.then(function(roleRegistry){
+		.then(function (roleRegistry) {
 			return roleRegistry.get(fieldData.roleId);
 		})
-		.then(function(role){
+		.then(function (role) {
 			r = role;
 			index = role.authorizedFields.splice(f);
-			if(index>-1){
-				role.authorizedFields.splice(index,1);
+			if (index > -1) {
+				role.authorizedFields.splice(index, 1);
 			}
 		})
-		.then(function(){
+		.then(function () {
 			return getAssetRegistry(NS + '.Field');
 		})
-		.then(function(fieldRegistry){
+		.then(function (fieldRegistry) {
 			fieldRegistry.update(f);
 		})
-		.then(function(){
+		.then(function () {
 			return getAssetRegistry(NS + '.Role');
 		})
-		.then(function(roleRegistry){
+		.then(function (roleRegistry) {
 			roleRegistry.update(r);
 		})
- }		
+}
 
 
- /**
-  * updateCertificate function - to update a certificate to match new fields
-  * @param {org.acme.chaincert.UpdateCertificate} newData - new certificate Data
-  * @transaction
-  */
+/**
+ * updateCertificate function - to update a certificate to match new fields
+ * @param {org.acme.chaincert.UpdateCertificate} newData - new certificate Data
+ * @transaction
+ */
 
 
-  function updateCertificate(newData){
+function updateCertificate(newData) {
 
 	var c;
 	var i;
@@ -541,101 +566,450 @@ async function addField(fieldData) {
 	var instId;
 
 	return getParticipantRegistry(NS + '.User')
-		.then(function(userRegistry){
+		.then(function (userRegistry) {
 			userRegistry.get(newData.issuerId);
 		})
-		.then(function(user){
+		.then(function (user) {
 			roleId = u.role.getIdentifier();
 		})
-		.then(function(){
+		.then(function () {
 			return getAssetRegistry(NS + '.Role');
 		})
-		.then(function(roleRegistry){
+		.then(function (roleRegistry) {
 			r = roleRegistry.get(roleId);
 		})
-		.then(function(){
+		.then(function () {
 			return getAssetRegistry(NS + '.Certificate');
 		})
-		.then(function(certificateRegistry){
+		.then(function (certificateRegistry) {
 			//get all certificates
 			return certificateRegistry.get(newData.certificateId);
 		})
-		.then(function(certificate){
+		.then(function (certificate) {
 			c = certificate;
 			//change old certiicate data
 			certificate.certificateData = newData.certificateData;
 			certificate.certificateFields = r.authorizedFields;
 			instId = certificate.issuer.getIdentifier;
 		})
-		.then(function(){
+		.then(function () {
 			return getParticipantRegistry(NS + '.Institute');
 		})
-		.then(function(instituteRegistry){
+		.then(function (instituteRegistry) {
 			return instituteRegistry.get(instId);
 		})
-		.then(function(institute){
+		.then(function (institute) {
 			i = institute;
 		})
-		.then(function(){
+		.then(function () {
 			return getAssetRegistry(NS + '.Certificate');
 		})
-		.then(function(certificateRegistry){
+		.then(function (certificateRegistry) {
 			certificateRegistry.update(c);
 		})
-		.then(function(){
+		.then(function () {
 			return getParticipantRegistry(NS + '.Institute');
 		})
-		.then(function(instituteRegistry){
+		.then(function (instituteRegistry) {
 			instituteRegistry.update(i);
 		})
 
 
-  }
+}
 
 
-  /**
-   * Make a certificate inactive [void]
-   * @param {org.acme.chaincert.VoidCertificate} certId - certificate Id
-   * @transaction 
-   */
+/**
+ * Make a certificate inactive [void]
+ * @param {org.acme.chaincert.VoidCertificate} certId - certificate
+ * @transaction 
+ */
 
-   function VoidCertificate(certId){
+function VoidCertificate(certId) {
 
 	var c;
 	var i;
 	var instId;
 	return getAssetRegistry(NS + '.Certificate')
-		.then(function(certificateRegistry){
+		.then(function (certificateRegistry) {
 			return certificateRegistry.get(certId.certificateId);
 		})
-		.then (function(certificate){
+		.then(function (certificate) {
 			c = certificate;
 			certificate.status = 'INACTIVE';
 			instId = certificate.issuer.getIdentifier();
 		})
-		.then(function(){
+		.then(function () {
 			return getParticipantRegistry(NS + '.Institute');
 		})
-		.then(function(institiuteRegistry){
+		.then(function (institiuteRegistry) {
 			return nstituteRegistry.get(instId);
 		})
-		.then(function(institiute){
+		.then(function (institiute) {
 			i = institute;
 		})
-		.then(function(){
+		.then(function () {
 			return getAssetRegistry(NS + '.Certificate');
 		})
-		.then(function(certificateRegistry){
+		.then(function (certificateRegistry) {
 			certificateRegistry.update(c);
 		})
-		.then(function(){
+		.then(function () {
 			return getParticipantRegistry(NS + '.Institute');
 		})
-		.then(function(instituteRegistry){
+		.then(function (instituteRegistry) {
 			instituteRegistry.update(i);
 		})
 
-   }
+}
+
+
+/**
+	* Edit User First Name
+	@param {org.acme.chaincert.EditUserFirstName} userData - user data
+	@transaction
+    */
+
+function editUserFirstName(userData) {
+
+	var instId;
+	var i;
+	var u;
+
+	return getParticipantRegistry(NS + '.User')
+		.then(function (userRegistry) {
+			return userRegistry.get(userData.uid);
+		})
+		.then(function (user) {
+			u = user;
+			user.firstName = userData.newFirstName
+			instId = user.employer.getIdentifier();
+		})
+		.then(function () {
+			return getParticipantRegistry(NS + '.Institute');
+		})
+		.then(function (instituteRegistry) {
+			return instituteRegistry.get(instId);
+		})
+		.then(function (institute) {
+			i = institute;
+
+			for (var cnt = 0; cnt < institute.users.length; cnt++) {
+				if (institute.users[cnt].uid == userData.uid) {
+					institute.users[cnt].firstName = userData.newFirstName;
+				}
+			}
+
+		})
+		.then(function () {
+			return getParticipantRegistry(NS + '.User');
+		})
+		.then(function (userRegistry) {
+			userRegistry.update(u);
+		})
+		.then(function () {
+			return getParticipantRegistry(NS + '.Institute');
+		})
+		.then(function (instituteRegistry) {
+			instituteRegistry.update(i);
+		})
+
+
+}
+
+/**
+	* Edit User's Last Name
+	@param {org.acme.chaincert.EditUserLastName} userData - user data
+	@transaction
+    */
+
+function editUserLastName(userData) {
+
+	var instId;
+	var i;
+	var u;
+
+	return getParticipantRegistry(NS + '.User')
+		.then(function (userRegistry) {
+			return userRegistry.get(userData.uid);
+		})
+		.then(function (user) {
+			u = user;
+			user.lastName = userData.newLastName
+			instId = user.employer.getIdentifier();
+		})
+		.then(function () {
+			return getParticipantRegistry(NS + '.Institute');
+		})
+		.then(function (instituteRegistry) {
+			return instituteRegistry.get(instId);
+		})
+		.then(function (institute) {
+			i = institute;
+
+			for (var cnt = 0; cnt < institute.users.length; cnt++) {
+				if (institute.users[cnt].uid == userData.uid) {
+					institute.users[cnt].lastName = userData.newLastName;
+				}
+			}
+
+		})
+		.then(function () {
+			return getParticipantRegistry(NS + '.User');
+		})
+		.then(function (userRegistry) {
+			userRegistry.update(u);
+		})
+		.then(function () {
+			return getParticipantRegistry(NS + '.Institute');
+		})
+		.then(function (instituteRegistry) {
+			instituteRegistry.update(i);
+		})
+
+
+}
+
+/**
+	* Edit User's Email Address
+	@param {org.acme.chaincert.EditUserEmail} userData - user data
+	@transaction
+    */
+
+function editUserEmail(userData) {
+
+	var instId;
+	var i;
+	var u;
+
+	return getParticipantRegistry(NS + '.User')
+		.then(function (userRegistry) {
+			return userRegistry.get(userData.uid);
+		})
+		.then(function (user) {
+			u = user;
+			user.email = userData.newEmail
+			instId = user.employer.getIdentifier();
+		})
+		.then(function () {
+			return getParticipantRegistry(NS + '.Institute');
+		})
+		.then(function (instituteRegistry) {
+			return instituteRegistry.get(instId);
+		})
+		.then(function (institute) {
+			i = institute;
+
+			for (var cnt = 0; cnt < institute.users.length; cnt++) {
+				if (institute.users[cnt].uid == userData.uid) {
+					institute.users[cnt].email = userData.newEmail;
+				}
+			}
+
+		})
+		.then(function () {
+			return getParticipantRegistry(NS + '.User');
+		})
+		.then(function (userRegistry) {
+			userRegistry.update(u);
+		})
+		.then(function () {
+			return getParticipantRegistry(NS + '.Institute');
+		})
+		.then(function (instituteRegistry) {
+			instituteRegistry.update(i);
+		})
+
+
+}
+
+/**
+	* Edit User's Email Address
+	@param {org.acme.chaincert.EditUserPhone} userData - user data
+	@transaction
+    */
+
+function editUserPhone(userData) {
+
+	var instId;
+	var i;
+	var u;
+
+	return getParticipantRegistry(NS + '.User')
+		.then(function (userRegistry) {
+			return userRegistry.get(userData.uid);
+		})
+		.then(function (user) {
+			u = user;
+			user.phone = userData.newPhone
+			instId = user.employer.getIdentifier();
+		})
+		.then(function () {
+			return getParticipantRegistry(NS + '.Institute');
+		})
+		.then(function (instituteRegistry) {
+			return instituteRegistry.get(instId);
+		})
+		.then(function (institute) {
+			i = institute;
+
+			for (var cnt = 0; cnt < institute.users.length; cnt++) {
+				if (institute.users[cnt].uid == userData.uid) {
+					institute.users[cnt].phone = userData.newPhone;
+				}
+			}
+
+		})
+		.then(function () {
+			return getParticipantRegistry(NS + '.User');
+		})
+		.then(function (userRegistry) {
+			userRegistry.update(u);
+		})
+		.then(function () {
+			return getParticipantRegistry(NS + '.Institute');
+		})
+		.then(function (instituteRegistry) {
+			instituteRegistry.update(i);
+		})
+
+
+}
+
+/**
+	* Edit User's Email Address
+	@param {org.acme.chaincert.ChangeUserStatus} userData - user data
+	@transaction
+    */
+
+function changeUserStatus(userData) {
+
+	var instId;
+	var i;
+	var u;
+
+	return getParticipantRegistry(NS + '.User')
+		.then(function (userRegistry) {
+			return userRegistry.get(userData.uid);
+		})
+		.then(function (user) {
+			u = user;
+
+			if (user.status == "ACTIVE") {
+				user.status = "INACTIVE";
+			} else {
+				user.status = "ACTIVE";
+			}
+
+			instId = user.employer.getIdentifier();
+		})
+		.then(function () {
+			return getParticipantRegistry(NS + '.Institute');
+		})
+		.then(function (instituteRegistry) {
+			return instituteRegistry.get(instId);
+		})
+		.then(function (institute) {
+			i = institute;
+
+			for (var cnt = 0; cnt < institute.users.length; cnt++) {
+				if (institute.users[cnt].uid == userData.uid) {
+
+					if (institute.users[cnt].status == "ACTIVE") {
+						institute.users[cnt].status = "INACTIVE";
+					} else {
+						institute.users[cnt].status = "ACTIVE";
+					}
+				}
+			}
+
+		})
+		.then(function () {
+			return getParticipantRegistry(NS + '.User');
+		})
+		.then(function (userRegistry) {
+			userRegistry.update(u);
+		})
+		.then(function () {
+			return getParticipantRegistry(NS + '.Institute');
+		})
+		.then(function (instituteRegistry) {
+			instituteRegistry.update(i);
+		})
+
+
+}
+
+
+/**
+ * View all certificates isssued by an institute
+ * @param {org.acme.chaincert.ViewIssuedCertificates} instId - institute Id
+ * @transaction
+ */
+
+function viewIssuedCertificates(instId) {
+
+	return getParticipantRegistry(NS + '.Institute')
+		.then(function (instituteRegistry) {
+			instituteRegistry.get(instId.instituteId);
+		})
+		.then(function (institute) {
+			return institute.issuedCertificates;
+		})
+
+}
+
+
+/**
+ * Edit a field name
+ * @param {org.acme.chaincert.EditFieldName} fieldData - field name and id
+ * @transaction
+ */
+
+function editFieldName(fieldData) {
+
+	var f;
+	var r = [];
+	var rids = [];
+
+	return getAssetRegistry(NS + ".Field")
+		.then(function (fieldRegistry) {
+			return fieldRegistry.get(fieldData.fieldId);
+		})
+		.then(function (field) {
+			f = field;
+			field.name = fieldData.newFieldName;
+			rids = field.authorizedViewersRoleId;
+		})
+		.then(function () {
+			return getAssetRegistry(NS + '.Role');
+		})
+		.then(function (roleRegistry) {
+			for (var i = 0; i < rids.length; i++) {
+				r[i] = roleRegistry.get(rids[i]);
+				for (var j = 0; j < r[i].authorizedFields.length; j++) {
+					if (r[i].authorizedFields[j].fieldId == fieldData.fieldId) {
+						r[i].authorizedFields[j].name = fieldData.newFieldName;
+					}
+				}
+			}
+		})
+		.then(function () {
+			return getAssetRegistry(NS + '.Field');
+		})
+		.then(function (fieldRegistry) {
+			fieldRegistry.update(f);
+		})
+		.then(function () {
+			return getAssetRegistry(NS + '.Role');
+		})
+		.then(function (roleRegistry) {
+			for (var i = 0; i < r.length; i++) {
+				return roleRegistry.update(r[i]);
+			}
+		})
+
+
+}
 
 //______ _   _ _____  
 //|  ____| \ | |  __ \ 
@@ -644,7 +1018,7 @@ async function addField(fieldData) {
 //| |____| |\  | |__| |
 //|______|_| \_|_____/ 
 //					 
-					 
+
 
 
 

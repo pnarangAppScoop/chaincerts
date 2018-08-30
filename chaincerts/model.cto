@@ -38,6 +38,7 @@ participant User identified by uid{
   o String email
   o String firstName
   o String lastName
+  o Integer phone
   o Status status
   --> Role role
   --> Institute employer
@@ -131,6 +132,7 @@ transaction RegisterInstitute {
  o String adminFirstName
  o String adminLastName
  o String adminEmail
+ o Integer adminPhone
  o String description
  o String password
  o String confirmPassword
@@ -148,6 +150,7 @@ transaction AddUser{
   o String lastName
   o String instituteId
   o String roleId
+  o Integer phone
 }
 
 transaction AddField{
@@ -195,6 +198,39 @@ transaction RemoveRole{
   //remove role from Field
   //remove role from users
   //remove role from roles
+}
+
+transaction EditUserFirstName {
+  o String newFirstName
+  o String uid
+}
+
+transaction EditUserLastName {
+  o String newLastName
+  o String uid
+}
+
+transaction EditUserEmail {
+  o String newEmail
+  o String uid
+}
+
+transaction EditUserPhone {
+  o Integer newPhone
+  o String uid
+}
+
+transaction ChangeUserStatus{
+  o String uid
+}
+
+transaction ViewIssuedCertificates{
+  o String instituteId
+}
+
+transaction EditFieldName{
+  o String fieldId
+  o String newFieldName
 }
 
 
