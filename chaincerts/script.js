@@ -617,7 +617,7 @@ async function addField(fieldData) {
 			return getParticipantRegistry(NS + '.Institute');
 		})
 		.then(function(institiuteRegistry){
-			return nstituteRegistry.get(instId):
+			return nstituteRegistry.get(instId);
 		})
 		.then(function(institiute){
 			i = institute;
