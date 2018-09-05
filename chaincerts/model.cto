@@ -22,9 +22,9 @@ participant Institute identified by instituteId{
 	o String instituteId
   	o String name
     o String description
-    o Certificate[] issuedCertificates
-    o User[] users
-    o Role[] roles
+    o String[] issuedCertificateIds
+    o String[] userIds
+    o String[] roleIds
 }
 
 enum Status {
@@ -40,32 +40,19 @@ participant User identified by uid{
   o String lastName
   o Integer phone
   o Status status
-  --> Role role
-  --> Institute employer
+  o String roleId
+  o String employerId
  
 }
 
 asset Role identified by roleId {
    o String roleId
    o String roleName
-   o Field[] authorizedFields
-   --> Institute institute
+   o String[] authorizedFieldIds
+   o String[] authorizedEventTypeIds
+   o String instituteId
+   o Status status
 }
-
-
-/**
-asset Certificate identified by certificateId{
- 	o String certificateId
-    o String firstName
-    o String lastName
-    o DateTime issueDate
-    o DateTime expiryDate optional
-    o Integer studentId optional
-    o String description
-    --> Institute issuer 
-}
-**/
-
 
 transaction IssueCertificate {
   o String[] certData  
@@ -80,6 +67,7 @@ asset Certificate identified by certificateId{
   o String[] certificateData
   o DateTime issueDate
   o Status status
+  o Event[] events
   --> Institute issuer 
 
     /**o String[] certificateFields**/
@@ -98,32 +86,48 @@ asset Field identified by fieldId {
  o FieldType type
  o String name
  o String[] options
- o String[] authorizedViewersRoleId
+ o String[] authorizedViewersRoleIds
+ o Status status
 }
 
 //TODO
-asset Event identified by eventName {
+asset Event identified by eventId {
+ o String eventId
  o String eventName
- o String description
+ o Field[] eventFields
+ o String[] eventDetails
+ o String issuerId
+ o DateTime issueTime
+}
+
+asset EventType identified by eventTypeId{
+  o String eventTypeId
+  o String[] eventFieldIds
+  o String[] authorizedViewersRoleIds
+  o String eventName
+  o Status status
 }
 
 //TOOD
-transaction logEvent {
- o String eventName
- o String eventDescription
- o String certificateId
+//create event
+//add event to array
+transaction LogEvent {
+  o String certificateId
+  o String eventTypeId
+  o String issuerId
+  o String[] eventDetails
 }
 
-/**
-transaction IssueCertificate {
+transaction CreateEventType{
+  o String eventName
+  o String[] authorizedViewersRoleIds
   o String instituteId
-  o String firstName
-  o String lastName
-  o DateTime expiryDate
-  o Integer studentId
-  o String description
 }
-**/
+
+transaction AddFieldToEventType{
+  o String eventTypeId
+  o String fieldId
+}
 
 transaction RegisterInstitute {
  o String name
@@ -158,7 +162,7 @@ transaction AddField{
   o String instituteId
   o FieldType type
   o String[] options 
-  o String[] authorizedViewersRoleId
+  o String[] authorizedViewersRoleIds
 }
 
 transaction AddRole{
@@ -180,24 +184,12 @@ transaction RemoveFieldFromRole{
 
 transaction UpdateCertificate{
   o String[] certificateData
-  o String[] issuerId
+  o String issuerId
   o String certificateID
 }
 
 transaction VoidCertificate{
   o String certificateId
-}
-
-transaction RemoveUser{
-  //remove user from instutute
-  //remove user from users
-}
-
-transaction RemoveRole{
-  //remove role from institute
-  //remove role from Field
-  //remove role from users
-  //remove role from roles
 }
 
 transaction EditUserFirstName {
@@ -233,6 +225,41 @@ transaction EditFieldName{
   o String newFieldName
 }
 
+transaction EditFieldType{
+  o String fieldId
+  o FieldType newFieldType
+  o String[] options
+}
+
+transaction EditRoleName{
+  o String roleId
+  o String newRoleName
+}
+
+transaction EditUserRole{
+  o String userId
+  o String roleId
+}
+
+transaction ChangeRoleStaus{
+  o String roleId
+}
+
+transaction ChangeFieldStatus{
+  o String fieldId
+}
+
+transaction EditInstituteName{
+  o String newName
+  o String instituteId
+  o String issuerId
+}
+
+transaction EditInstituteDescription{
+  o String newDescription
+  o String instituteId
+  o String issuerId
+}
 
 //TEST
 transaction GetUser{

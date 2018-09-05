@@ -41,6 +41,8 @@ async function issueCertificate(tx) {
 
 	certificate.status = 'ACTIVE';
 
+	certificate.events = [];
+
 
 	//popoulate Data Array
 	for (var i = 0; i < tx.certData.length; i++) {
@@ -165,12 +167,14 @@ async function registerInstitute(register) {
 	adminRole.roleName = "Admin"
 	adminRole.authorizedFieldIds = [];
 	adminRole.instituteId = id;
+	adminRole.status = 'ACTIVE';
 
 	//Create public role
 	var publicRole = factory.newResource(NS, 'Role', id + '_public')
 	publicRole.roleName = "Public"
 	publicRole.authorizedFieldIds = [];
 	publicRole.instituteId = id;
+	publicRole.status = 'ACTIVE';
 
 
 	//create admin user
@@ -287,6 +291,8 @@ async function addField(fieldData) {
 	//field Options (only if dropdown)
 	field.options = [];
 
+	field.status = 'ACTIVE';
+
 	if(fieldData.type == "DROPDOWN"){
 		field.options = fieldData.options;
 	}
@@ -346,6 +352,8 @@ async function addRole(roleData) {
 
 	//establish relationship between role and institute
 	role.instituteId = roleData.instituteId;
+
+	role.status = 'ACTIVE';
 
 
 	var instituteRegistry = await getParticipantRegistry(NS + '.Institute');
@@ -605,7 +613,7 @@ async function editUserPhone(userData) {
 async function changeUserStatus(userData) {
 
 		
-	var userRegistry = await getParticipantRegistry (NS + '.User');
+	var userRegistry = await getParticipantRegistry(NS + '.User');
 	var u = await userRegistry.get(userData.uid);
 
 	if (u.status == "ACTIVE"){
@@ -618,6 +626,50 @@ async function changeUserStatus(userData) {
 
 
 }
+
+/**
+	@param {org.acme.chaincert.ChangeRoleStatus} roleData - role data
+	@transaction
+    */
+
+   async function changeRoleStatus(roleData) {
+
+		
+	var roleRegistry = await getAssetRegistry(NS + '.Role');
+	var r = await roleRegistry.get(roleData.roleId);
+
+	if (r.status == "ACTIVE"){
+		r.status = "INACTIVE";
+	} else {
+		r.status = "ACTIVE";
+	}
+
+	await roleRegistry.update(r);
+
+
+}
+
+/**
+	@param {org.acme.chaincert.ChangeFieldStatus} fieldData - role data
+	@transaction
+    */
+
+   async function changeFieldStatus(fieldData) {
+
+		
+	var fieldRegistry = await getAssetRegistry(NS + '.Field');
+	var f = await fieldRegistry.get(fieldData.fieldId);
+
+	if (f.status == "ACTIVE"){
+		f.status = "INACTIVE";
+	} else {
+		f.status = "ACTIVE";
+	}
+
+	await fieldRegistry.update(f);
+
+}
+
 
 
 /**
@@ -725,6 +777,148 @@ async function editUserRole(data) {
 	await userRegistry.update(u);
 }
 
+
+/**
+ * createEventType
+ * @param {org.acme.Chaincert.CreateEventType} eventTypeData - event Type data
+ * @transaction
+ */
+
+ async function createEventType(eventTypeData){
+
+	var factory = getFactory();
+	var id = '1';
+	var eventType = factory.newResource(NS, 'EventType', id);
+	//create event type
+	eventType.eventName = eventTypeData.eventName;
+	eventType.authorizedViewersRoleIds = eventTypeData.authorizedViewersRoleIds;
+	eventType.eventFieldIds = [];
+	eventType.status = 'ACTIVE';
+
+	var eventTypeRegistry = await getAssetRegistry(NS + '.EventType');
+	//add to blockchain
+	await eventTypeRegistry.addAll([eventType]);
+	
+	var roleRegistry = await getAssetRegistry(NS + '.Role');
+	//add eventtype to admin
+	var adminRole = await roleRegistry.get(eventTypeData.instituteId + '_admin');
+	await adminRole.authorizedEventTypeIds.push(id);
+
+	var rids = [];
+	var r = [];
+	rids = eventTypeData.authorizedViewersRoleIds;
+	//add eventtype to all authorized roles
+	for (var i = 0; i < rids.length; i++){
+		r[i] = await roleRegistry.get(rids[i]);
+		r[i].authroizedEventTypeIds.push(id);
+	}
+	
+	//update blockchain
+	await roleRegistry.update(adminRole);
+
+	for (var i = 0; i < r.length; i++){
+		await roleRegistry.update(r[i]);
+	}
+
+ }
+
+ /**
+  * AddFieldToEventType
+  * @param {org.acme.Chaincert.AddFieldToEventType} fieldData - fieldId
+  * @transaction
+  */
+
+  async function addFieldToEventType(fieldData){
+
+	var eventTypeRegistry = await getAssetRegistry(NS + '.EventType');
+	var eventType = await eventTypeRegistry.get(fieldData.eventTypeId);
+
+	eventType.eventFieldIds.push(fieldData.fieldId);
+
+	await eventTypeRegistry.update(eventType);
+  }
+
+
+  /**
+   * logEvent
+   * @param {org.acme.Chaincert.LogEvent} eventData - event
+   * @transaction
+   */
+
+   async function logEvent(eventData){
+
+	var factory = getFactory();
+	var id = 1;
+	var event = factory.newResource(NS, 'Event', id);
+
+	var eventTypeRegistry = await getAssetRegistry(NS + '.EventType');
+	var eventType = await eventTypeRegistry.get(eventData.eventTypeId);
+
+	event.eventName = eventType.eventName;
+	
+	var fieldRegistry = await getAssetRegistry(NS + '.Field');
+	//for loop for fields
+	var fids = eventType.eventFieldIds;
+
+	for (var i = 0; i < fids.lengthl i++){
+		var f = await fieldRegistry.get(fids[i]);
+		event.eventFields.push(f);
+	}
+
+	event.eventDetails = eventData.eventDetails;
+
+	event.issuderId = eventData.issuerId;
+	event.issueTime = eventData.timestamp;
+
+	var eventRegistry = getAssetRegistry(NS + '.Event');
+	await eventRegistry.addAll([event]);
+
+	var certificateRegistry = getAssetRegistry(NS + '.Certificate');
+	var c = certificateRegistry.get(eventData.certificateId);
+
+	c.events.push(event);
+	await certificateRegistry.update(c);
+
+   }
+
+ /**
+* Edit Institute Name
+@param {org.acme.Chaincert.EditInstituteName} instData - institue Data
+@transacton
+*/
+
+async function editInstituteName(instData){
+
+	var instituteRegistry = await getParticipantRegistry(NS + '.Institute');
+	var i = await instituteRegistry.get(instData.instituteId);
+
+	if (issuer.id == instData.instituteId + '_admin'){
+		i.name = instData.newName;
+	}
+
+	await instituteRegistry.update(i);
+}
+
+/**
+* Edit Institute Name
+@param {org.acme.Chaincert.EditInstituteDescription} instData - institue Data
+@transacton
+   */
+
+   async function editInstituteDescription(instData){
+
+	var instituteRegistry = await getParticipantRegistry(NS + '.Institute');
+	var i = await instituteRegistry.get(instData.instituteId);
+
+	if (issuer.id == instData.instituteId + '_admin'){
+		i.description = instData.newDescription;
+	}
+
+	await instituteRegistry.update(i);
+}
+
+
+	
 
 //______ _   _ _____  
 //|  ____| \ | |  __ \ 
