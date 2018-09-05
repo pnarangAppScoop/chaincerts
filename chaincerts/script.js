@@ -860,7 +860,7 @@ async function editUserRole(data) {
 	//for loop for fields
 	var fids = eventType.eventFieldIds;
 
-	for (var i = 0; i < fids.lengthl i++){
+	for (var i = 0; i < fids.length; i++){
 		var f = await fieldRegistry.get(fids[i]);
 		event.eventFields.push(f);
 	}
