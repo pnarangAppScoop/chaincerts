@@ -67,12 +67,12 @@ async function issueCertificate(tx) {
 	var certificateRegistry = await getAssetRegistry(NS + '.Certificate');
 
 	var issuingUser = await userRegistry.get(tx.issuerId);
-	var issuingUserRole = await  roleRegistry.get(issuingUser.roleId);
+	var issuingUserRole = await roleRegistry.get(issuingUser.roleId);
 	var certificateFieldIds = issuingUserRole.authorizedFieldIds;
 
 
 	//populate certificate field data
-	for (var i = 0; i < certificateFieldIds.length; i++){
+	for (var i = 0; i < certificateFieldIds.length; i++) {
 		var f = await fieldRegistry.get(certificateFieldIds[i]);
 		certificate.certificateFields.push(f);
 	}
@@ -166,6 +166,7 @@ async function registerInstitute(register) {
 	var adminRole = factory.newResource(NS, 'Role', id + '_admin');
 	adminRole.roleName = "Admin"
 	adminRole.authorizedFieldIds = [];
+	adminRole.authorizedEventTypeIds = [];
 	adminRole.instituteId = id;
 	adminRole.status = 'ACTIVE';
 
@@ -173,6 +174,7 @@ async function registerInstitute(register) {
 	var publicRole = factory.newResource(NS, 'Role', id + '_public')
 	publicRole.roleName = "Public"
 	publicRole.authorizedFieldIds = [];
+	publicRole.authorizedEventTypeIds = [];
 	publicRole.instituteId = id;
 	publicRole.status = 'ACTIVE';
 
@@ -192,22 +194,38 @@ async function registerInstitute(register) {
 	//set admin as admin role
 	admin.roleId = id + '_admin';
 
-	//add roles to institute
+	//add roleids to institute
 	inst.roleIds.push(id + '_admin');
 	inst.roleIds.push(id + '_public');
 
 	//add admin user to insititute 
 	inst.userIds.push(uid);
 
+
+	//create update event
+	var uetid = id + '_update';
+	var updateEventType = factory.newResource(NS, 'EventType', uetid);
+	updateEventType.eventName = "Certificate Updated";
+	updateEventType.eventFieldIds = [];
+	updateEventType.authorizedViewersRoleIds = [];
+
+	updateEventType.authorizedViewersRoleIds.push(id + '_admin');
+	updateEventType.status = 'ACTIVE';
+
+
+
 	var instituteRegistry = await getParticipantRegistry(NS + '.Institute');
 	var roleRegistry = await getAssetRegistry(NS + '.Role');
 	var userRegistry = await getParticipantRegistry(NS + '.User');
+	var eventTypeRegistry = await getAssetRegistry(NS + '.EventType');
+
+	await eventTypeRegistry.addAll([updateEventType]);
 
 	await userRegistry.addAll([admin]);
-  
+
 	await roleRegistry.addAll([adminRole, publicRole]);
-  
-  	await instituteRegistry.addAll([inst]);
+
+	await instituteRegistry.addAll([inst]);
 }
 
 
@@ -293,7 +311,7 @@ async function addField(fieldData) {
 
 	field.status = 'ACTIVE';
 
-	if(fieldData.type == "DROPDOWN"){
+	if (fieldData.type == "DROPDOWN") {
 		field.options = fieldData.options;
 	}
 
@@ -348,7 +366,9 @@ async function addRole(roleData) {
 
 	//authorized fields are empty
 	//array is filled when fields are added
-	role.authorizedFieldIds= [];
+	role.authorizedFieldIds = [];
+
+	role.authorizedEventTypeIds = [];
 
 	//establish relationship between role and institute
 	role.instituteId = roleData.instituteId;
@@ -359,7 +379,7 @@ async function addRole(roleData) {
 	var instituteRegistry = await getParticipantRegistry(NS + '.Institute');
 	var roleRegistry = await getAssetRegistry(NS + '.Role');
 	roleRegistry.addAll([role]);
-	
+
 	var inst = await instituteRegistry.get(roleData.instituteId);
 	inst.roleIds.push(rid);
 
@@ -376,7 +396,7 @@ async function addRole(roleData) {
 
 async function addFieldToRole(fieldData) {
 
-	var fieldRegistry =  await getAssetRegistry(NS + '.Field');
+	var fieldRegistry = await getAssetRegistry(NS + '.Field');
 	var roleRegistry = await getAssetRegistry(NS + '.Role');
 
 	var f = await fieldRegistry.get(fieldData.fieldId);
@@ -399,14 +419,14 @@ async function removeFieldFromRole(fieldData) {
 	var fieldRegistry = await getAssetRegistry(NS + '.Field');
 	var f = await fieldRegistry.get(fieldData.fieldId);
 	var index = f.authorizedViewersRoleIds.indexOf(fieldData.roleId);
-	if (index > -1){
-		f.authorizedViewersRoleIds.splice(index,1);
+	if (index > -1) {
+		f.authorizedViewersRoleIds.splice(index, 1);
 	}
-	
+
 	var roleRegistry = await getAssetRegistry(NS + '.Role');
 	var r = await roleRegistry.get(fieldData.roleId);
 	index = r.authorizedFieldIds.indexOf(fieldData.fieldId);
-	if (index > -1){
+	if (index > -1) {
 		r.authorizedFieldIds.splice(index, 1);
 	}
 
@@ -424,69 +444,57 @@ async function removeFieldFromRole(fieldData) {
 
 async function updateCertificate(newData) {
 	//fix this
-	var userRegistry = await getParticipantRegistry(NS + '.User');
-	var u = await userRegistry.get(newData.issuerId);
-	var roleId = await u.role.getIdentifier();
+	//create update event at register institute
+	//call update event 
+	//push update event to certificate 
+	//override fields 
 
-	var roleRegistry = await getAssetRegistry(NS + '.Role');
-	var cerificateRegistry = await getAssetRegistry(NS + '.Certificate');
-
+	var certificateRegistry = await getAssetRegistry(NS + '.Certificate');
 	var c = await certificateRegistry.get(newData.certificateId);
 
-	var i;
-	var r;
-	
-	var instId;
+	var userRegistry = await getParticipantRegistry(NS + '.User');
+	var u = await userRegistry.get(newData.issuerId);
 
-	return getParticipantRegistry(NS + '.User')
-		.then(function (userRegistry) {
-			userRegistry.get(newData.issuerId);
-		})
-		.then(function (user) {
-			roleId = u.role.getIdentifier();
-		})
-		.then(function () {
-			return getAssetRegistry(NS + '.Role');
-		})
-		.then(function (roleRegistry) {
-			r = roleRegistry.get(roleId);
-		})
-		.then(function () {
-			return getAssetRegistry(NS + '.Certificate');
-		})
-		.then(function (certificateRegistry) {
-			//get all certificates
-			return certificateRegistry.get(newData.certificateId);
-		})
-		.then(function (certificate) {
-			c = certificate;
-			//change old certiicate data
-			certificate.certificateData = newData.certificateData;
-			certificate.certificateFields = r.authorizedFields;
-			instId = certificate.issuer.getIdentifier;
-		})
-		.then(function () {
-			return getParticipantRegistry(NS + '.Institute');
-		})
-		.then(function (instituteRegistry) {
-			return instituteRegistry.get(instId);
-		})
-		.then(function (institute) {
-			i = institute;
-		})
-		.then(function () {
-			return getAssetRegistry(NS + '.Certificate');
-		})
-		.then(function (certificateRegistry) {
-			certificateRegistry.update(c);
-		})
-		.then(function () {
-			return getParticipantRegistry(NS + '.Institute');
-		})
-		.then(function (instituteRegistry) {
-			instituteRegistry.update(i);
-		})
+	var roleRegistry = await getAssetRegistry(NS + '.Role');
+	var r = await roleRegistry.get(u.roleId);
 
+	var fids = r.authorizedFieldIds;
+
+	var fieldRegistry = await getAssetRegistry(NS + '.Field');
+
+	c.certificateFields = [];
+
+	for (var i = 0; i < fids.length; i++) {
+		var f = await fieldRegistry.get(fids[i]);
+		c.certificateFields.push(f);
+	}
+
+	c.certificateData = newData.certificateData;
+
+	var factory = getFactory();
+	var ueid = c.certificateId + '_update';
+	var updateEvent = factory.newResource(NS, 'Ev', ueid);
+
+	var eventTypeRegistry = await getAssetRegistry(NS + '.EventType');
+	var updateEventType = await eventTypeRegistry.get(u.employerId + '_update');
+
+	updateEvent.eventName = updateEventType.eventName;
+	updateEvent.eventFields=[];
+	for (var i =0; i < updateEventType.eventFieldIds; i++){
+		f = await fieldRegistry.get(updateEventType.eventFieldIds[i]);
+		updateEvent.eventFields.push(f);
+	}
+
+	updateEvent.eventDetails = [];
+	updateEvent.issuerId = newData.issuerId;
+	updateEvent.issueTime = newData.timestamp;
+
+	var eventRegistry = await getAssetRegistry(NS + '.Ev');
+	await eventRegistry.addAll([updateEvent]);
+
+	c.events.push(updateEvent);
+
+	await certificateRegistry.update(c);
 
 }
 
@@ -497,42 +505,11 @@ async function updateCertificate(newData) {
  * @transaction 
  */
 
-function VoidCertificate(certId) {
-//fix this
-	var c;
-	var i;
-	var instId;
-	return getAssetRegistry(NS + '.Certificate')
-		.then(function (certificateRegistry) {
-			return certificateRegistry.get(certId.certificateId);
-		})
-		.then(function (certificate) {
-			c = certificate;
-			certificate.status = 'INACTIVE';
-			instId = certificate.issuer.getIdentifier();
-		})
-		.then(function () {
-			return getParticipantRegistry(NS + '.Institute');
-		})
-		.then(function (institiuteRegistry) {
-			return nstituteRegistry.get(instId);
-		})
-		.then(function (institiute) {
-			i = institute;
-		})
-		.then(function () {
-			return getAssetRegistry(NS + '.Certificate');
-		})
-		.then(function (certificateRegistry) {
-			certificateRegistry.update(c);
-		})
-		.then(function () {
-			return getParticipantRegistry(NS + '.Institute');
-		})
-		.then(function (instituteRegistry) {
-			instituteRegistry.update(i);
-		})
-
+async function VoidCertificate(certId) {
+	var certificateRegistry = await getAssetRegistry(NS + '.Certificate');
+	var c = await certificateRegistry.get(certId.certificateId);
+	c.status = 'INACTIVE';
+	await certificateRegistry.update(c);
 }
 
 
@@ -544,7 +521,7 @@ function VoidCertificate(certId) {
 
 async function editUserFirstName(userData) {
 
-	var userRegistry = await getParticipantRegistry (NS + '.User');
+	var userRegistry = await getParticipantRegistry(NS + '.User');
 	var u = await userRegistry.get(userData.uid);
 
 	u.firstName = userData.newFirstName;
@@ -560,7 +537,7 @@ async function editUserFirstName(userData) {
 async function editUserLastName(userData) {
 
 
-	var userRegistry = await getParticipantRegistry (NS + '.User');
+	var userRegistry = await getParticipantRegistry(NS + '.User');
 	var u = await userRegistry.get(userData.uid);
 
 	u.lastName = userData.newLastName;
@@ -577,8 +554,8 @@ async function editUserLastName(userData) {
 
 async function editUserEmail(userData) {
 
-	
-	var userRegistry = await getParticipantRegistry (NS + '.User');
+
+	var userRegistry = await getParticipantRegistry(NS + '.User');
 	var u = await userRegistry.get(userData.uid);
 
 	u.email = userData.newEmail;
@@ -595,8 +572,8 @@ async function editUserEmail(userData) {
 
 async function editUserPhone(userData) {
 
-	
-	var userRegistry = await getParticipantRegistry (NS + '.User');
+
+	var userRegistry = await getParticipantRegistry(NS + '.User');
 	var u = await userRegistry.get(userData.uid);
 
 	u.phone = userData.newPhone;
@@ -612,11 +589,11 @@ async function editUserPhone(userData) {
 
 async function changeUserStatus(userData) {
 
-		
+
 	var userRegistry = await getParticipantRegistry(NS + '.User');
 	var u = await userRegistry.get(userData.uid);
 
-	if (u.status == "ACTIVE"){
+	if (u.status == "ACTIVE") {
 		u.status = "INACTIVE";
 	} else {
 		u.status = "ACTIVE";
@@ -632,13 +609,13 @@ async function changeUserStatus(userData) {
 	@transaction
     */
 
-   async function changeRoleStatus(roleData) {
+async function changeRoleStatus(roleData) {
 
-		
+
 	var roleRegistry = await getAssetRegistry(NS + '.Role');
 	var r = await roleRegistry.get(roleData.roleId);
 
-	if (r.status == "ACTIVE"){
+	if (r.status == "ACTIVE") {
 		r.status = "INACTIVE";
 	} else {
 		r.status = "ACTIVE";
@@ -654,13 +631,13 @@ async function changeUserStatus(userData) {
 	@transaction
     */
 
-   async function changeFieldStatus(fieldData) {
+async function changeFieldStatus(fieldData) {
 
-		
+
 	var fieldRegistry = await getAssetRegistry(NS + '.Field');
 	var f = await fieldRegistry.get(fieldData.fieldId);
 
-	if (f.status == "ACTIVE"){
+	if (f.status == "ACTIVE") {
 		f.status = "INACTIVE";
 	} else {
 		f.status = "ACTIVE";
@@ -690,7 +667,7 @@ async function viewIssuedCertificates(instId) {
 	var cs = []
 	var c;
 
-	for (var i = 0; i > cids.length; i++){
+	for (var i = 0; i > cids.length; i++) {
 		c = await certificateRegistry.get(cids[i]);
 		cs.push(c);
 	}
@@ -730,7 +707,7 @@ async function editFieldType(fieldData) {
 	f = await fieldRegistry.get(fieldData.fieldId);
 	f.type = fieldData.newFieldType;
 
-	if (fieldData.newFieldType == "DROPDOWN"){
+	if (fieldData.newFieldType == "DROPDOWN") {
 		f.options = fieldData.options;
 	}
 
@@ -768,8 +745,8 @@ async function editUserRole(data) {
 	var roleRegistry = await getAssetRegistry(NS + '.Role');
 
 	var isRole = await roleRegistry.exists(data.roleId);
-	
-	if (isRole){
+
+	if (isRole) {
 		u = await userRegistry.get(data.userId);
 		u.roleId = data.roleId;
 	}
@@ -780,11 +757,11 @@ async function editUserRole(data) {
 
 /**
  * createEventType
- * @param {org.acme.Chaincert.CreateEventType} eventTypeData - event Type data
+ * @param {org.acme.chaincert.CreateEventType} eventTypeData - event Type data
  * @transaction
  */
 
- async function createEventType(eventTypeData){
+async function createEventType(eventTypeData) {
 
 	var factory = getFactory();
 	var id = '1';
@@ -798,7 +775,7 @@ async function editUserRole(data) {
 	var eventTypeRegistry = await getAssetRegistry(NS + '.EventType');
 	//add to blockchain
 	await eventTypeRegistry.addAll([eventType]);
-	
+
 	var roleRegistry = await getAssetRegistry(NS + '.Role');
 	//add eventtype to admin
 	var adminRole = await roleRegistry.get(eventTypeData.instituteId + '_admin');
@@ -808,27 +785,27 @@ async function editUserRole(data) {
 	var r = [];
 	rids = eventTypeData.authorizedViewersRoleIds;
 	//add eventtype to all authorized roles
-	for (var i = 0; i < rids.length; i++){
+	for (var i = 0; i < rids.length; i++) {
 		r[i] = await roleRegistry.get(rids[i]);
-		r[i].authroizedEventTypeIds.push(id);
+		r[i].authorizedEventTypeIds.push(id);
 	}
-	
+
 	//update blockchain
 	await roleRegistry.update(adminRole);
 
-	for (var i = 0; i < r.length; i++){
+	for (var i = 0; i < r.length; i++) {
 		await roleRegistry.update(r[i]);
 	}
 
- }
+}
 
- /**
-  * AddFieldToEventType
-  * @param {org.acme.Chaincert.AddFieldToEventType} fieldData - fieldId
-  * @transaction
-  */
+/**
+ * AddFieldToEventType
+ * @param {org.acme.chaincert.AddFieldToEventType} fieldData - fieldId
+ * @transaction
+ */
 
-  async function addFieldToEventType(fieldData){
+async function addFieldToEventType(fieldData) {
 
 	var eventTypeRegistry = await getAssetRegistry(NS + '.EventType');
 	var eventType = await eventTypeRegistry.get(fieldData.eventTypeId);
@@ -836,63 +813,64 @@ async function editUserRole(data) {
 	eventType.eventFieldIds.push(fieldData.fieldId);
 
 	await eventTypeRegistry.update(eventType);
-  }
+}
 
 
-  /**
-   * logEvent
-   * @param {org.acme.Chaincert.LogEvent} eventData - event
-   * @transaction
-   */
+/**
+ * logEvent
+ * @param {org.acme.chaincert.LogEvent} eventData - event
+ * @transaction
+ */
 
-   async function logEvent(eventData){
+async function logEvent(eventData) {
 
 	var factory = getFactory();
-	var id = 1;
-	var event = factory.newResource(NS, 'Event', id);
+	var id = "1";
+	var event = factory.newResource(NS, 'Ev', id);
 
 	var eventTypeRegistry = await getAssetRegistry(NS + '.EventType');
 	var eventType = await eventTypeRegistry.get(eventData.eventTypeId);
 
 	event.eventName = eventType.eventName;
-	
+	event.eventFields = [];
+
 	var fieldRegistry = await getAssetRegistry(NS + '.Field');
 	//for loop for fields
 	var fids = eventType.eventFieldIds;
 
-	for (var i = 0; i < fids.length; i++){
+	for (var i = 0; i < fids.length; i++) {
 		var f = await fieldRegistry.get(fids[i]);
 		event.eventFields.push(f);
 	}
 
 	event.eventDetails = eventData.eventDetails;
 
-	event.issuderId = eventData.issuerId;
+	event.issuerId = eventData.issuerId;
 	event.issueTime = eventData.timestamp;
 
-	var eventRegistry = getAssetRegistry(NS + '.Event');
+	var eventRegistry = await getAssetRegistry(NS + '.Ev');
 	await eventRegistry.addAll([event]);
 
-	var certificateRegistry = getAssetRegistry(NS + '.Certificate');
-	var c = certificateRegistry.get(eventData.certificateId);
+	var certificateRegistry = await getAssetRegistry(NS + '.Certificate');
+	var c = await certificateRegistry.get(eventData.certificateId);
 
 	c.events.push(event);
 	await certificateRegistry.update(c);
 
-   }
+}
 
- /**
+/**
 * Edit Institute Name
-@param {org.acme.Chaincert.EditInstituteName} instData - institue Data
+@param {org.acme.chaincert.EditInstituteName} instData - institue Data
 @transacton
 */
 
-async function editInstituteName(instData){
+async function editInstituteName(instData) {
 
 	var instituteRegistry = await getParticipantRegistry(NS + '.Institute');
 	var i = await instituteRegistry.get(instData.instituteId);
 
-	if (issuer.id == instData.instituteId + '_admin'){
+	if (issuer.id == (instData.instituteId + '_admin')) {
 		i.name = instData.newName;
 	}
 
@@ -901,16 +879,16 @@ async function editInstituteName(instData){
 
 /**
 * Edit Institute Name
-@param {org.acme.Chaincert.EditInstituteDescription} instData - institue Data
+@param {org.acme.chaincert.EditInstituteDescription} instData - institue Data
 @transacton
    */
 
-   async function editInstituteDescription(instData){
+async function editInstituteDescription(instData) {
 
 	var instituteRegistry = await getParticipantRegistry(NS + '.Institute');
 	var i = await instituteRegistry.get(instData.instituteId);
 
-	if (issuer.id == instData.instituteId + '_admin'){
+	if (issuer.id == instData.instituteId + '_admin') {
 		i.description = instData.newDescription;
 	}
 
@@ -918,7 +896,7 @@ async function editInstituteName(instData){
 }
 
 
-	
+
 
 //______ _   _ _____  
 //|  ____| \ | |  __ \ 

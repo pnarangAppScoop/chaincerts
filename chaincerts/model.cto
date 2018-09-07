@@ -67,7 +67,7 @@ asset Certificate identified by certificateId{
   o String[] certificateData
   o DateTime issueDate
   o Status status
-  o Event[] events
+  o Ev[] events
   --> Institute issuer 
 
     /**o String[] certificateFields**/
@@ -91,7 +91,7 @@ asset Field identified by fieldId {
 }
 
 //TODO
-asset Event identified by eventId {
+asset Ev identified by eventId {
  o String eventId
  o String eventName
  o Field[] eventFields
@@ -185,7 +185,7 @@ transaction RemoveFieldFromRole{
 transaction UpdateCertificate{
   o String[] certificateData
   o String issuerId
-  o String certificateID
+  o String certificateId
 }
 
 transaction VoidCertificate{
@@ -241,7 +241,7 @@ transaction EditUserRole{
   o String roleId
 }
 
-transaction ChangeRoleStaus{
+transaction ChangeRoleStatus{
   o String roleId
 }
 
