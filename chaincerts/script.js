@@ -862,7 +862,7 @@ async function logEvent(eventData) {
 /**
 * Edit Institute Name
 @param {org.acme.chaincert.EditInstituteName} instData - institue Data
-@transacton
+@transaction
 */
 
 async function editInstituteName(instData) {
@@ -880,7 +880,7 @@ async function editInstituteName(instData) {
 /**
 * Edit Institute Name
 @param {org.acme.chaincert.EditInstituteDescription} instData - institue Data
-@transacton
+@transaction
    */
 
 async function editInstituteDescription(instData) {
@@ -894,6 +894,96 @@ async function editInstituteDescription(instData) {
 
 	await instituteRegistry.update(i);
 }
+ 
+/**
+* Edit Institute Name
+@param {org.acme.chaincert.GetInstitute} g -  Data
+@transaction
+*/
+
+async function getInstitute(g){
+
+	var reg = await getParticipantRegistry(NS + '.Institute');
+	var r = await reg.get(g.id);
+	return r;
+
+}
+
+
+/**
+* Edit Institute Name
+@param {org.acme.chaincert.GetRole} g -  Data
+@transaction
+*/
+
+async function getInstitute(g){
+
+	var reg = await getAssetRegistry(NS + '.Role');
+	var r = await reg.get(g.id);
+	return r;
+
+}
+
+
+/**
+* Edit Institute Name
+@param {org.acme.chaincert.GetField} g -  Data
+@transaction
+*/
+
+async function getInstitute(g){
+
+	var reg = await getAssetRegistry(NS + '.Field');
+	var r = await reg.get(g.id);
+	return r;
+
+}
+
+
+/**
+* Edit Institute Name
+@param {org.acme.chaincert.GetCertificate} g - institue Data
+@transaction
+*/
+
+async function getInstitute(g){
+
+	var reg = await getAssetRegistry(NS + '.Certificate');
+	var r = await reg.get(g.id);
+	return r;
+
+}
+
+
+/**
+* Edit Institute Name
+@param {org.acme.chaincert.GetEvent} g - institue Data
+@transaction
+*/
+
+async function getInstitute(g){
+
+	var reg = await getAssetRegistry(NS + '.Event');
+	var r = await reg.get(g.id);
+	return r;
+
+}
+
+
+/**
+* Edit Institute Name
+@param {org.acme.chaincert.GetEventType} g - institue Data
+@transaction
+*/
+
+async function getInstitute(g){
+
+	var reg = await getAssetRegistry(NS + '.EventType');
+	var r = await reg.get(g.id);
+	return r;
+
+}
+
 
 
 
