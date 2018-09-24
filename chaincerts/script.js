@@ -281,10 +281,9 @@ async function verifyCertificate(verify) {
  */
 async function getUser(userData) {
 
-	return getParticipantRegistry(NS + '.User')
-		.then(function (userRegistry) {
-			return userRegistry.get(userData.uid);
-		})
+	var userReg = await getParticipantRegistry(NS + '.User');
+	var u = await userReg.get(userData.uid);
+	return u;
 
 }
 
@@ -898,6 +897,7 @@ async function editInstituteDescription(instData) {
 /**
 * Edit Institute Name
 @param {org.acme.chaincert.GetInstitute} g -  Data
+@returns {org.acme.chaincert.Institute}
 @transaction
 */
 
@@ -913,10 +913,11 @@ async function getInstitute(g){
 /**
 * Edit Institute Name
 @param {org.acme.chaincert.GetRole} g -  Data
+@returns {org.acme.chaincert.Role}
 @transaction
 */
 
-async function getInstitute(g){
+async function getRole(g){
 
 	var reg = await getAssetRegistry(NS + '.Role');
 	var r = await reg.get(g.id);
@@ -928,10 +929,11 @@ async function getInstitute(g){
 /**
 * Edit Institute Name
 @param {org.acme.chaincert.GetField} g -  Data
+@returns {org.acme.chaincert.Field}
 @transaction
 */
 
-async function getInstitute(g){
+async function GetField(g){
 
 	var reg = await getAssetRegistry(NS + '.Field');
 	var r = await reg.get(g.id);
@@ -943,10 +945,11 @@ async function getInstitute(g){
 /**
 * Edit Institute Name
 @param {org.acme.chaincert.GetCertificate} g - institue Data
+@returns {org.acme.chaincert.Certificate}
 @transaction
 */
 
-async function getInstitute(g){
+async function getCertificate(g){
 
 	var reg = await getAssetRegistry(NS + '.Certificate');
 	var r = await reg.get(g.id);
@@ -958,12 +961,13 @@ async function getInstitute(g){
 /**
 * Edit Institute Name
 @param {org.acme.chaincert.GetEvent} g - institue Data
+@returns {org.acme.chaincert.Ev}
 @transaction
 */
 
-async function getInstitute(g){
+async function getEvent(g){
 
-	var reg = await getAssetRegistry(NS + '.Event');
+	var reg = await getAssetRegistry(NS + '.Ev');
 	var r = await reg.get(g.id);
 	return r;
 
@@ -973,10 +977,11 @@ async function getInstitute(g){
 /**
 * Edit Institute Name
 @param {org.acme.chaincert.GetEventType} g - institue Data
+@returns {org.acme.chaincert.EventType}
 @transaction
 */
 
-async function getInstitute(g){
+async function getEventType(g){
 
 	var reg = await getAssetRegistry(NS + '.EventType');
 	var r = await reg.get(g.id);
@@ -984,7 +989,43 @@ async function getInstitute(g){
 
 }
 
+/**
+* Edit Institute Name
+@param {org.acme.chaincert.GetAllInstitutes} g -  Data
+@transaction
+*/
 
+async function getAllInstitutes(g){
+	var reg = await getParticipantRegistry(NS + '.Institute');
+	var r = await reg.getAll();
+	return r;
+}
+
+
+/**
+* Return all certificates isssued by a given institute id
+@param {org.acme.chaincert.GetAllCertificatesIssuedByInstitute} g -  Data
+@returns {org.acme.chaincert.Certificate[]}
+@transaction
+*/
+
+async function getAllCertificatesIssuedByInstitute(g){
+	var reg = await getParticipantRegistry(NS + '.Institute');
+	var i = await reg.get(g.instituteId);
+
+	var cids = i.issuedCertificateIds;
+
+	var creg =await getAssetRegistry(NS + '.Certificate');
+	var c = [];
+
+	for (var cnt = 0; cnt < cids.length; cnt++){
+		var temp;
+		temp = await creg.get(cids[cnt]);
+		c.push(temp);
+	}
+
+	return c;
+}
 
 
 

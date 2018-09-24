@@ -265,3 +265,42 @@ transaction EditInstituteDescription{
 transaction GetUser{
   o String uid
 }
+
+@returns(Institute)
+transaction GetInstitute{
+  o String id
+}
+
+@returns(Role)
+transaction GetRole{
+  o String id
+}
+
+@returns(Field)
+transaction GetField{
+  o String id
+}
+
+@returns(Certificate)
+transaction GetCertificate{
+  o String id
+}
+
+@returns(Ev)
+transaction GetEvent{
+  o String id
+}
+
+@returns(EventType)
+transaction GetEventType{
+  o String id
+}
+
+
+transaction GetAllInstitutes{
+}
+
+@returns(Certificate[])
+transaction GetAllCertificatesIssuedByInstitute{
+  o String instituteId
+}
